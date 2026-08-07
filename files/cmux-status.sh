@@ -16,6 +16,14 @@
 # on any event AND via a self-scheduled wake, so a stuck spinner clears even
 # when this is the only active session (no other hook fires to trigger a sweep).
 #
+# Heartbeat: `running` is registered on EVERY tool call (PreToolUse matches all
+# tools), not just a subset. Two things depend on it. A turn made only of
+# web/file tools would otherwise never refresh, so (1) the watchdog below would
+# wrongly downgrade a live session to `done` after STALE_SECS, and (2) a
+# mid-turn `waiting` (a permission prompt) would never flip back to `running`
+# once answered — the tab would sit on WAITING with no spinner for the rest of
+# the turn. The `running` branch has a cheap fast path for this.
+#
 # Recap guard (B): some agent harnesses emit an automatic "recap" a few seconds
 # after a turn ends — a phantom turn that fires a `running` lifecycle event with
 # no matching Stop, which would restart the spinner forever. We ignore a
@@ -167,11 +175,20 @@ esac
 # 1) Record this session's state.
 case "$1" in
   running)
+    cur="$(cat "$DIR/$SF" 2>/dev/null)"
+    # Heartbeat fast path. PreToolUse fires on EVERY tool call, so the common
+    # case (already running, staying running) must be cheap: the pushed label
+    # can't have changed, so just refresh the mtime — that timestamp is the
+    # watchdog's liveness signal — and skip the two cmux pushes entirely.
+    if [ "$cur" = "running" ]; then
+      printf 'running' > "$DIR/$SF"
+      arm_watchdog
+      exit 0
+    fi
     # Fix B: suppress the recap phantom. If this surface just finished
     # (done/ready written within RECAP_WINDOW), a `running` arriving now is the
     # auto-recap, not real work — keep the finished state so the spinner stays
     # off. A genuine new turn arrives later (or re-asserts via a real tool call).
-    cur="$(cat "$DIR/$SF" 2>/dev/null)"
     if [ "$cur" = "done" ] || [ "$cur" = "ready" ]; then
       mt="$(stat -f %m "$DIR/$SF" 2>/dev/null || echo 0)"
       [ $(( $(date +%s) - mt )) -lt "$RECAP_WINDOW" ] && exit 0

@@ -19,7 +19,10 @@ MODE = sys.argv[1] if len(sys.argv) > 1 else "install"
 # Per-agent hook events -> (status argument, matcher)
 CLAUDE_HOOKS = [
     ("UserPromptSubmit", "running", None),
-    ("PreToolUse",       "running", "Bash|Task"),
+    # All tools, not just Bash|Task: every tool call is the heartbeat that keeps
+    # the watchdog from killing a live session and restores `running` after a
+    # mid-turn permission prompt. cmux-status.sh has a fast path for it.
+    ("PreToolUse",       "running", "*"),
     ("SubagentStart",    "busy",    None),
     ("SubagentStop",     "busy",    None),
     ("Notification",     "waiting", None),
