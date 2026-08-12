@@ -36,6 +36,66 @@ TRAE_HOOKS = [
     ("Notification",     "waiting", None),
 ]
 
+# traex — trae's newer CLI — migrated hooks out of ~/.trae/hooks.json into
+# traecli.toml and no longer runs the legacy file, so a hooks.json-only mount
+# silently reports nothing. Same events, TOML syntax. Both are written: older
+# trae builds still read hooks.json.
+TRAEX_TOML = f"{HOME}/.trae/traecli.toml"
+TOML_BEGIN = "# >>> conductor-sidebar hooks >>>"
+TOML_END   = "# <<< conductor-sidebar hooks <<<"
+TRAEX_HOOKS = [
+    ("UserPromptSubmit", "running", True),
+    ("PreToolUse",       "running", True),
+    ("SubagentStart",    "busy",    True),
+    ("SubagentStop",     "busy",    True),
+    ("Notification",     "waiting", False),
+    ("Stop",             "ready",   False),
+    ("SessionEnd",       "clear",   False),
+]
+
+def render_traex_block():
+    out = [TOML_BEGIN, "# per-tab agent status for the cmux sidebar"]
+    for ev, arg, is_async in TRAEX_HOOKS:
+        out += ["", f"[[hooks.{ev}]]", f"[[hooks.{ev}.hooks]]",
+                'type = "command"', f'command = "bash \\"{STATUS}\\" {arg}"']
+        if is_async:
+            out.append("async = true")
+    return "\n".join(out + ["", TOML_END])
+
+def strip_traex_block(raw):
+    kept, skip = [], False
+    for line in raw.splitlines():
+        s = line.strip()
+        if s == TOML_BEGIN:
+            skip = True
+            continue
+        if s == TOML_END:
+            skip = False
+            continue
+        if not skip:
+            kept.append(line)
+    return "\n".join(kept).rstrip("\n") + "\n"
+
+def process_traex():
+    if not os.path.exists(TRAEX_TOML):
+        return "  skip traecli.toml (not found)"
+    raw = open(TRAEX_TOML).read()
+    new = strip_traex_block(raw)          # install strips first: re-run = safe update
+    if MODE == "install":
+        new += "\n" + render_traex_block() + "\n"
+    if new == raw:
+        return "  traecli.toml unchanged"
+    try:
+        import tomllib
+        tomllib.loads(new)                # a broken traecli.toml kills every hook
+    except ImportError:
+        pass                              # python <3.11: skip the check, not the write
+    except Exception as e:
+        return f"  ⚠ traecli.toml edit would not parse, left untouched: {e}"
+    with open(TRAEX_TOML, "w") as f:
+        f.write(new)
+    return f"  {'merged' if MODE=='install' else 'removed'} hooks -> {TRAEX_TOML}"
+
 def load_jsonc(p):
     raw = open(p).read()
     raw = re.sub(r'^\s*//.*$', '', raw, flags=re.M)   # whole-line comments
@@ -182,4 +242,5 @@ if __name__ == "__main__":
     # json.load would blow up mid-install.
     print(process_agent(f"{HOME}/.claude/settings.json", CLAUDE_HOOKS, True, load_jsonc, speed=SPEED, tabname=TABNAME_ON, manage_env=True))
     print(process_agent(f"{HOME}/.trae/hooks.json", TRAE_HOOKS, False, load_jsonc))
+    print(process_traex())
     print(process_cmux())

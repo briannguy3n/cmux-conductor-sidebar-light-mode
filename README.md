@@ -72,13 +72,14 @@ Precisely removes only what this package added (hooks, files, config keys). Your
 | `files/cmux-rename-hook.sh` | rename dialog + "seen" red-dot clear (notification hook) |
 | `files/cmux-tabname.sh` | speed mode: name each tab from the prompt, once per turn |
 | `install.sh` / `uninstall.sh` | orchestration (backup → files → config merge → activate) |
-| `merge.py` | idempotent merge/removal for settings.json / trae hooks / cmux.json |
+| `merge.py` | idempotent merge/removal for settings.json / trae + traex hooks / cmux.json |
 
 ## Notes & limitations
 
 - Status hooks are read **per-event** by Claude Code / trae, so changes take effect on already-running sessions without a restart.
 - A red dot clears when you click the tab **from this sidebar** (that's what sends the "seen" signal). Switching via `cmd+number` or the top tab bar won't clear it; sending a new prompt to that agent also clears it.
 - If you turn on cmux's `workspaceAutoNaming`, its background auto-namer briefly registers as "running" — this package leaves that setting off.
+- trae's newer CLI (`traex`) reads its hooks from `~/.trae/traecli.toml`, not the legacy `~/.trae/hooks.json`; both are written, so either version reports status. traex gates each hook behind a trust prompt, so the first session after installing asks you to approve it once.
 
 ## License
 
