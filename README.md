@@ -12,7 +12,7 @@ A [Conductor](https://conductor.build)-style custom sidebar for [cmux](https://c
   - 🟠 a `WAITING` pill when the agent needs your input.
   - 🔴 a red dot the moment a task finishes — **clears when you open that tab**.
 - **Right-click menu** on a workspace: rename, pin, move up/down/top, mark read, new tab, close.
-- Works with both **Claude Code and trae**.
+- Works with **Claude Code, trae/traex, and opencode**.
 - **One-command install** that backs up your existing config first; clean uninstall; re-run install to update safely.
 
 ## Requirements
@@ -36,7 +36,7 @@ The sidebar auto-activates. If it doesn't: right-click cmux's sidebar-toggle but
 
 cmux's custom-sidebar DSL can only read cmux's built-in data, which has **no per-tab agent status**. This project bridges that gap:
 
-1. A small hook (`cmux-status.sh`) is registered on Claude Code / trae lifecycle events (`UserPromptSubmit`→running, `PreToolUse`→running, `Notification`→waiting, `Stop`→done, …).
+1. A small hook (`cmux-status.sh`) is registered on Claude Code / trae lifecycle events (`UserPromptSubmit`→running, `PreToolUse`→running, `Notification`→waiting, `Stop`→done, …). opencode has no shell hooks, so a small JS plugin calls the same script from its plugin hooks and event stream.
 2. It records each session's state under `~/.cache/cmux-status/` and aggregates it into that workspace's `progress.label`, e.g. `RUNNING run:<uuid> done:<uuid>`.
 3. The sidebar (`conductor.swift`) parses that label to draw the per-tab spinner / red dot, animated via the DSL's `clock` so it keeps moving for backgrounded tabs.
 4. Opening a tab sends a "seen" signal (a tiny internal notification intercepted by a notification hook) that clears its red dot.
@@ -71,6 +71,7 @@ Precisely removes only what this package added (hooks, files, config keys). Your
 | `files/cmux-status.sh` | per-session status reporting + workspace aggregation |
 | `files/cmux-rename-hook.sh` | rename dialog + "seen" red-dot clear (notification hook) |
 | `files/cmux-tabname.sh` | speed mode: name each tab from the prompt, once per turn |
+| `files/opencode-status-plugin.js` | opencode plugin: maps its hooks/events onto the same states |
 | `install.sh` / `uninstall.sh` | orchestration (backup → files → config merge → activate) |
 | `merge.py` | idempotent merge/removal for settings.json / trae + traex hooks / cmux.json |
 
@@ -80,6 +81,7 @@ Precisely removes only what this package added (hooks, files, config keys). Your
 - A red dot clears when you click the tab **from this sidebar** (that's what sends the "seen" signal). Switching via `cmd+number` or the top tab bar won't clear it; sending a new prompt to that agent also clears it.
 - If you turn on cmux's `workspaceAutoNaming`, its background auto-namer briefly registers as "running" — this package leaves that setting off.
 - trae's newer CLI (`traex`) reads its hooks from `~/.trae/traecli.toml`, not the legacy `~/.trae/hooks.json`; both are written, so either version reports status. traex gates each hook behind a trust prompt, so the first session after installing asks you to approve it once.
+- opencode loads plugins at startup, so an opencode session already running when you install won't report until you restart it.
 
 ## License
 

@@ -96,6 +96,40 @@ def process_traex():
         f.write(new)
     return f"  {'merged' if MODE=='install' else 'removed'} hooks -> {TRAEX_TOML}"
 
+# opencode has no shell-hook config — it loads JS plugins, registered by
+# absolute file:// URL in opencode.json. The plugin itself does the same
+# state mapping the shell hooks do (see files/opencode-status-plugin.js).
+OPENCODE_JSON = f"{HOME}/.config/opencode/opencode.json"
+OPENCODE_PLUGIN = f"{DIR}/opencode-status-plugin.js"
+OPENCODE_URL = f"file://{OPENCODE_PLUGIN}"
+
+def process_opencode():
+    if not os.path.exists(OPENCODE_JSON):
+        return "  skip opencode.json (not found)"
+    try:
+        data = load_jsonc(OPENCODE_JSON)
+    except Exception as e:
+        return f"  ⚠ Failed to parse opencode.json, skipped: {e}"
+    plugins = data.get("plugin")
+    if not isinstance(plugins, list):
+        plugins = [] if MODE == "install" else None
+        if plugins is None:
+            return "  opencode.json unchanged"
+    # drop any earlier mount (path may have moved) before re-adding
+    kept = [p for p in plugins
+            if not (isinstance(p, str) and "opencode-status-plugin.js" in p)]
+    if MODE == "install":
+        kept.append(OPENCODE_URL)
+    if kept == plugins and ("plugin" in data or not kept):
+        return "  opencode.json unchanged"
+    if kept:
+        data["plugin"] = kept
+    else:
+        data.pop("plugin", None)
+    with open(OPENCODE_JSON, "w") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    return f"  {'merged' if MODE=='install' else 'removed'} plugin -> {OPENCODE_JSON}"
+
 def load_jsonc(p):
     raw = open(p).read()
     raw = re.sub(r'^\s*//.*$', '', raw, flags=re.M)   # whole-line comments
@@ -243,4 +277,5 @@ if __name__ == "__main__":
     print(process_agent(f"{HOME}/.claude/settings.json", CLAUDE_HOOKS, True, load_jsonc, speed=SPEED, tabname=TABNAME_ON, manage_env=True))
     print(process_agent(f"{HOME}/.trae/hooks.json", TRAE_HOOKS, False, load_jsonc))
     print(process_traex())
+    print(process_opencode())
     print(process_cmux())

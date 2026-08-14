@@ -40,8 +40,9 @@ mkdir -p "$DEST" "$SIDEBARS"
 install -m 0755 "$FILES/cmux-status.sh"       "$DEST/cmux-status.sh"
 install -m 0755 "$FILES/cmux-rename-hook.sh"  "$DEST/cmux-rename-hook.sh"
 install -m 0755 "$FILES/cmux-tabname.sh"      "$DEST/cmux-tabname.sh"
+install -m 0644 "$FILES/opencode-status-plugin.js" "$DEST/opencode-status-plugin.js"
 install -m 0644 "$FILES/conductor.swift"      "$SIDEBARS/conductor.swift"
-echo "   -> $DEST/{cmux-status.sh,cmux-rename-hook.sh,cmux-tabname.sh}"
+echo "   -> $DEST/{cmux-status.sh,cmux-rename-hook.sh,cmux-tabname.sh,opencode-status-plugin.js}"
 echo "   -> $SIDEBARS/conductor.swift"
 
 # Speed mode (default on; set CONDUCTOR_SPEED=0 to skip) is applied by merge.py:
