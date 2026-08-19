@@ -1,5 +1,16 @@
-func statusColor(_ label: String) -> String {
-    return label == "RUNNING" ? "#60a5fa" : (label == "WAITING" ? "#fb923c" : "#4ade80")
+// Tuned for a light cmux theme. The sidebar DSL exposes no colorScheme, so the
+// palette cannot branch on the appearance. Surfaces are therefore translucent,
+// and each pill carries its own fill, so nothing depends on the sidebar ground.
+func statusLabel(_ label: String) -> String {
+    return label.hasPrefix("RUNNING") ? "RUNNING" : (label.hasPrefix("WAITING") ? "WAITING" : "READY")
+}
+
+func statusFill(_ label: String) -> String {
+    return label == "RUNNING" ? "#DBEAFE" : (label == "WAITING" ? "#FFEDD5" : "#DCFCE7")
+}
+
+func statusText(_ label: String) -> String {
+    return label == "RUNNING" ? "#1E40AF" : (label == "WAITING" ? "#9A3412" : "#166534")
 }
 
 // Self-drawn spinner (clock-driven, keeps spinning while unfocused)
@@ -21,7 +32,7 @@ VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 5) {
                         Image(systemName: "folder.fill")
                             .imageScale(.small)
-                            .foregroundColor(w.selected ? "#4C8DFF" : .secondary)
+                            .foregroundColor(w.selected ? "#2563EB" : .secondary)
                         Text(w.title)
                             .font(.callout).bold()
                             .lineLimit(1)
@@ -32,29 +43,29 @@ VStack(alignment: .leading, spacing: 0) {
                             .foregroundColor(.secondary)
                             .frame(width: w.tabCount > 9 ? 20 : 14, height: 14)
                             .background {
-                                Capsule().fill("#1b2932")
+                                Capsule().fill(.primary).opacity(0.08)
                             }
                             .fixedSize()
                         if w.pinned {
                             Image(systemName: "pin.fill")
                                 .imageScale(.small)
-                                .foregroundColor("#fbbf24")
+                                .foregroundColor("#B45309")
                                 .rotationEffect(.degrees(45))
                         }
                         Spacer(minLength: 3)
                         if let p = w.progress {
-                            Text("\(p.label)".hasPrefix("RUNNING") ? "RUNNING" : ("\(p.label)".hasPrefix("WAITING") ? "WAITING" : "READY"))
+                            Text(statusLabel("\(p.label)"))
                                 .font(.system(size: 9)).bold()
-                                .foregroundColor(statusColor("\(p.label)".hasPrefix("RUNNING") ? "RUNNING" : ("\(p.label)".hasPrefix("WAITING") ? "WAITING" : "READY")))
+                                .foregroundColor(statusText(statusLabel("\(p.label)")))
                                 .padding(2)
-                                .background("#0a141b")
+                                .background(statusFill(statusLabel("\(p.label)")))
                                 .cornerRadius(7)
                                 .fixedSize()
                         }
                         if w.index < 9 {
                             Text("⌘\(w.index + 1)")
                                 .font(.system(size: 8))
-                                .foregroundColor("#5a6b78")
+                                .foregroundColor(.secondary)
                                 .fixedSize()
                         }
                     }
@@ -77,17 +88,17 @@ VStack(alignment: .leading, spacing: 0) {
                                 if p.label.contains("run:\(t.id)") {
                                     Text(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][clock.second % 10])
                                         .font(.system(size: 12)).bold()
-                                        .foregroundColor("#60a5fa")
+                                        .foregroundColor("#2563EB")
                                         .frame(width: 16)
                                 } else {
                                     Image(systemName: "terminal")
                                         .imageScale(.small)
-                                        .foregroundColor(t.focused && w.selected ? "#4C8DFF" : .secondary)
+                                        .foregroundColor(t.focused && w.selected ? "#2563EB" : .secondary)
                                 }
                             } else {
                                 Image(systemName: "terminal")
                                     .imageScale(.small)
-                                    .foregroundColor(t.focused && w.selected ? "#4C8DFF" : .secondary)
+                                    .foregroundColor(t.focused && w.selected ? "#2563EB" : .secondary)
                             }
                             Text(t.title)
                                 .font(.caption)
@@ -97,16 +108,19 @@ VStack(alignment: .leading, spacing: 0) {
                             Spacer(minLength: 0)
                             if let p = w.progress {
                                 if p.label.contains("done:\(t.id)") {
-                                    Circle().fill("#E5484D").frame(width: 7, height: 7).fixedSize()
+                                    Circle().fill("#DC2626").frame(width: 7, height: 7).fixedSize()
                                 }
                             }
                         }
                         .padding(6)
-                        .background(t.focused && w.selected ? "#17293a" : "#141f29")
-                        .cornerRadius(7)
+                        .background {
+                            RoundedRectangle(cornerRadius: 7)
+                                .fill("#2563EB")
+                                .opacity(t.focused && w.selected ? 0.1 : 0.0)
+                        }
                         .overlay {
                             t.focused && w.selected
-                                ? AnyView(RoundedRectangle(cornerRadius: 7).stroke("#3b82f6", lineWidth: 1))
+                                ? AnyView(RoundedRectangle(cornerRadius: 7).stroke("#2563EB", lineWidth: 1))
                                 : AnyView(EmptyView())
                         }
                         .onTapGesture {
