@@ -23,6 +23,17 @@ func prText(_ status: String, _ stale: Bool) -> String {
     return status == "merged" ? "#5B21B6" : (status == "closed" ? "#991B1B" : "#166534")
 }
 
+// The interpreter drops `== nil` / `!= nil`, so collapse state is read from the
+// interpolated description instead. A nil description interpolates to something
+// that does not contain the marker, which is the expanded case.
+func isCollapsed(_ d: String) -> Bool {
+    return d.contains("collapsed")
+}
+
+func isExpanded(_ d: String) -> Bool {
+    return d.contains("collapsed") ? false : true
+}
+
 // Self-drawn spinner (clock-driven, keeps spinning while unfocused)
 func spinner(_ sec: Int) -> String {
     let frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
@@ -40,6 +51,13 @@ VStack(alignment: .leading, spacing: 0) {
             Reorderable(workspaces, move: "workspace.reorder") { w in
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 5) {
+                        Button(action: { cmux("workspace.action", action: isCollapsed("\(w.description)") ? "clear_description" : "set_description", workspace_id: w.id, description: "collapsed") }) {
+                            Image(systemName: isCollapsed("\(w.description)") ? "chevron.right" : "chevron.down")
+                                .imageScale(.small)
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .fixedSize()
                         Image(systemName: "folder.fill")
                             .imageScale(.small)
                             .foregroundColor(w.selected ? "#2563EB" : .secondary)
@@ -107,81 +125,83 @@ VStack(alignment: .leading, spacing: 0) {
                         Button("New Tab") { cmux("surface.create", workspace_id: w.id, focus: true) }
                         Button("Close Workspace") { cmux("workspace.close", workspace_id: w.id) }
                     }
-                    ForEach(w.tabs.prefix(12)) { t in
-                        HStack(spacing: 6) {
-                            Spacer().frame(width: 12)
-                            if let p = w.progress {
-                                if p.label.contains("run:\(t.id)") {
-                                    Text(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][clock.second % 10])
-                                        .font(.system(size: 12)).bold()
-                                        .foregroundColor("#2563EB")
-                                        .frame(width: 16)
+                    if isExpanded("\(w.description)") {
+                        ForEach(w.tabs.prefix(12)) { t in
+                            HStack(spacing: 6) {
+                                Spacer().frame(width: 12)
+                                if let p = w.progress {
+                                    if p.label.contains("run:\(t.id)") {
+                                        Text(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][clock.second % 10])
+                                            .font(.system(size: 12)).bold()
+                                            .foregroundColor("#2563EB")
+                                            .frame(width: 16)
+                                    } else {
+                                        Image(systemName: "terminal")
+                                            .imageScale(.small)
+                                            .foregroundColor(t.focused && w.selected ? "#2563EB" : .secondary)
+                                    }
                                 } else {
                                     Image(systemName: "terminal")
                                         .imageScale(.small)
                                         .foregroundColor(t.focused && w.selected ? "#2563EB" : .secondary)
                                 }
-                            } else {
-                                Image(systemName: "terminal")
-                                    .imageScale(.small)
-                                    .foregroundColor(t.focused && w.selected ? "#2563EB" : .secondary)
-                            }
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(t.title)
-                                    .font(.caption)
-                                    .foregroundColor(t.focused && w.selected ? .primary : .secondary)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                                if t.focused {
-                                    if let m = w.latestMessage {
-                                        Text("\(m)")
-                                            .font(.system(size: 9))
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(1)
-                                            .truncationMode(.tail)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(t.title)
+                                        .font(.caption)
+                                        .foregroundColor(t.focused && w.selected ? .primary : .secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                    if t.focused {
+                                        if let m = w.latestMessage {
+                                            Text("\(m)")
+                                                .font(.system(size: 9))
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(1)
+                                                .truncationMode(.tail)
+                                        }
                                     }
                                 }
-                            }
-                            Spacer(minLength: 0)
-                            if let p = w.progress {
-                                if p.label.contains("done:\(t.id)") {
-                                    Circle().fill("#DC2626").frame(width: 7, height: 7).fixedSize()
+                                Spacer(minLength: 0)
+                                if let p = w.progress {
+                                    if p.label.contains("done:\(t.id)") {
+                                        Circle().fill("#DC2626").frame(width: 7, height: 7).fixedSize()
+                                    }
+                                }
+                                if t.focused && w.selected {
+                                    Button(action: { cmux("surface.close", surface_id: t.id) }) {
+                                        Image(systemName: "xmark")
+                                            .imageScale(.small)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .fixedSize()
                                 }
                             }
-                            if t.focused && w.selected {
-                                Button(action: { cmux("surface.close", surface_id: t.id) }) {
-                                    Image(systemName: "xmark")
-                                        .imageScale(.small)
-                                        .foregroundColor(.secondary)
-                                }
-                                .buttonStyle(.plain)
-                                .fixedSize()
+                            .padding(6)
+                            .background {
+                                RoundedRectangle(cornerRadius: 7)
+                                    .fill("#2563EB")
+                                    .opacity(t.focused && w.selected ? 0.1 : 0.0)
+                            }
+                            .overlay {
+                                t.focused && w.selected
+                                    ? AnyView(RoundedRectangle(cornerRadius: 7).stroke("#2563EB", lineWidth: 1))
+                                    : AnyView(EmptyView())
+                            }
+                            .onTapGesture {
+                                cmux("workspace.select", workspace_id: w.id)
+                                cmux("surface.focus", surface_id: t.id)
+                                cmux("notification.create_for_caller", title: "cmux-seen", body: t.id)
+                            }
+                            .contextMenu {
+                                Button("Close Tab") { cmux("surface.close", surface_id: t.id) }
                             }
                         }
-                        .padding(6)
-                        .background {
-                            RoundedRectangle(cornerRadius: 7)
-                                .fill("#2563EB")
-                                .opacity(t.focused && w.selected ? 0.1 : 0.0)
+                        if w.tabCount > 12 {
+                            Text("+ \(w.tabCount - 12) more")
+                                .font(.caption2).foregroundColor(.secondary)
+                                .padding(4)
                         }
-                        .overlay {
-                            t.focused && w.selected
-                                ? AnyView(RoundedRectangle(cornerRadius: 7).stroke("#2563EB", lineWidth: 1))
-                                : AnyView(EmptyView())
-                        }
-                        .onTapGesture {
-                            cmux("workspace.select", workspace_id: w.id)
-                            cmux("surface.focus", surface_id: t.id)
-                            cmux("notification.create_for_caller", title: "cmux-seen", body: t.id)
-                        }
-                        .contextMenu {
-                            Button("Close Tab") { cmux("surface.close", surface_id: t.id) }
-                        }
-                    }
-                    if w.tabCount > 12 {
-                        Text("+ \(w.tabCount - 12) more")
-                            .font(.caption2).foregroundColor(.secondary)
-                            .padding(4)
                     }
                 }
                 .padding(2)
