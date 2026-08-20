@@ -33,7 +33,8 @@ PY
 fi
 
 echo "==> 2/4 Deleting installed files"
-rm -f "$HOME/.config/cmux/sidebars/conductor.swift"
+rm -f "$HOME/.config/cmux/sidebars/conductor.swift" \
+      "$HOME/.config/cmux/sidebars/conductor-dark.swift"
 rm -rf "$HOME/.config/cmux/conductor-sidebar"
 rm -rf "$HOME/.cache/cmux-status"
 echo "   removed sidebar, status scripts, status cache"

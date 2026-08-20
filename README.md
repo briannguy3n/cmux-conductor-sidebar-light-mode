@@ -3,7 +3,6 @@
 A [Conductor](https://conductor.build)-style custom sidebar for [cmux](https://cmux.com), with **live per-tab agent status** — see at a glance which Claude Code / trae session is running, waiting for input, or done.
 
 
-
 ## Features
 
 - **Workspace-grouped sidebar**: every tab listed under its workspace, click to jump, drag to reorder.
@@ -13,6 +12,7 @@ A [Conductor](https://conductor.build)-style custom sidebar for [cmux](https://c
   - 🟠 when the agent is blocked on a question, that tab is **washed orange with an orange accent bar** and an orange dot, and the workspace gets a `WAITING` pill.
   - 🟢 the moment a task finishes, that tab is **washed green with a green accent bar** and a green dot, so an answer waiting for you is visible without reading a single tab name — **clears when you open that tab**.
 - **Right-click menu** on a workspace: rename, pin, move up/down/top, mark read, new tab, close.
+- **Light/dark switcher** at the bottom left: one click repaints the whole sidebar for a light or a dark cmux theme. The pick sticks across restarts.
 - Works with **Claude Code, trae/traex, and opencode**.
 - **One-command install** that backs up your existing config first; clean uninstall; re-run install to update safely.
 
@@ -24,14 +24,30 @@ A [Conductor](https://conductor.build)-style custom sidebar for [cmux](https://c
 ## Install
 
 ```bash
-git clone https://github.com/qucooln/cmux-conductor-sidebar.git
-cd cmux-conductor-sidebar
+git clone https://github.com/briannguy3n/cmux-conductor-sidebar-light-mode.git
+cd cmux-conductor-sidebar-light-mode
 bash install.sh
 ```
 
 Install **backs up** your existing `~/.claude/settings.json`, `~/.config/cmux/cmux.json`, and `~/.trae/hooks.json` to `~/.config/cmux/conductor-backup-<timestamp>/`. All config changes are **idempotent merges** — your other hooks/settings are left alone. Re-running `install.sh` is a safe update.
 
-The sidebar auto-activates. If it doesn't: right-click cmux's sidebar-toggle button → pick **conductor**, or run `cmux sidebar select conductor`.
+The sidebar auto-activates, in the variant that matches your current macOS appearance — **conductor** (light) or **conductor-dark**. If it doesn't: right-click cmux's sidebar-toggle button → pick either one, or run `cmux sidebar select conductor`.
+
+## Light / dark
+
+The button at the **bottom left of the sidebar** flips the palette. Install picks the variant matching your macOS appearance; after that the button decides, and a re-install keeps whatever you last picked.
+
+Each variant paints the **whole bar** — ground, row slabs, and both neutral text colors — so the sidebar looks the same whether the cmux window itself is light or dark. That is deliberate: a custom sidebar mounts as real SwiftUI inside the cmux window, so `.primary` / `.secondary` and cmux's own sidebar material follow the *window's* appearance. A palette that left them alone would put dark accents on a light bar.
+
+It works by swapping sidebar files, because the sidebar DSL has neither a `colorScheme` value to read nor `@State` to remember a choice in:
+
+1. The button emits an internal notification (`cmux-theme`), the same trick the rename dialog uses.
+2. `cmux-rename-hook.sh` intercepts it and runs `cmux sidebar select conductor-dark` (or back to `conductor`). cmux remembers the active sidebar, so the choice survives a restart. Only those two names are honored.
+3. Both files come from **one** source: `files/conductor.swift` holds the whole view plus the light palette between two `// >>> conductor palette >>>` markers, and install splices in `files/palette-dark.swift` to generate the dark twin. Edit the view once and both variants follow.
+
+Because it is a file swap rather than a repaint, expect a brief flicker as the sidebar remounts. Both names show up in cmux's sidebar picker.
+
+An opaque ground replaces cmux's translucent sidebar material, so the bar no longer blurs what sits behind it. To keep that blur instead, blank the `ground` entry in the palette block and let cmux draw the ground — then match your window appearance to the palette, or turn on cmux's `sidebar.matchTerminalBackground` so the bar follows your terminal theme.
 
 ## How it works
 
@@ -68,9 +84,10 @@ Precisely removes only what this package added (hooks, files, config keys). Your
 
 | file | purpose |
 |---|---|
-| `files/conductor.swift` | the sidebar UI (cmux custom-sidebar DSL) |
+| `files/conductor.swift` | the sidebar UI (cmux custom-sidebar DSL) + the light palette block |
+| `files/palette-dark.swift` | the dark palette block; install splices it in to generate `conductor-dark` |
 | `files/cmux-status.sh` | per-session status reporting + workspace aggregation |
-| `files/cmux-rename-hook.sh` | rename dialog + "seen" red-dot clear (notification hook) |
+| `files/cmux-rename-hook.sh` | rename dialog + "seen" green-dot clear + light/dark switch (notification hook) |
 | `files/cmux-tabname.sh` | speed mode: name each tab after its Claude Code session, once per turn |
 | `files/opencode-status-plugin.js` | opencode plugin: maps its hooks/events onto the same states |
 | `install.sh` / `uninstall.sh` | orchestration (backup → files → config merge → activate) |
@@ -80,6 +97,7 @@ Precisely removes only what this package added (hooks, files, config keys). Your
 
 - Status hooks are read **per-event** by Claude Code / trae, so changes take effect on already-running sessions without a restart.
 - A green dot clears when you click the tab **from this sidebar** (that's what sends the "seen" signal). Switching via `cmd+number` or the top tab bar won't clear it; sending a new prompt to that agent also clears it.
+- The light/dark switcher cannot follow macOS automatically once installed: the DSL exposes no appearance value, so nothing repaints until you click the button (install is the one time it reads your appearance for you).
 - If you turn on cmux's `workspaceAutoNaming`, its background auto-namer briefly registers as "running" — this package leaves that setting off.
 - trae's newer CLI (`traex`) reads its hooks from `~/.trae/traecli.toml`, not the legacy `~/.trae/hooks.json`; both are written, so either version reports status. traex gates each hook behind a trust prompt, so the first session after installing asks you to approve it once.
 - opencode loads plugins at startup, so an opencode session already running when you install won't report until you restart it.
@@ -90,7 +108,9 @@ MIT — see [LICENSE](LICENSE).
 
 ## Disclaimer
 
-This is an independent, community-built project. It is **not affiliated with, endorsed by, or sponsored by** Conductor ([conductor.build](https://conductor.build)), [cmux](https://cmux.com), or Anthropic. "Conductor", "cmux", and "Claude" are trademarks of their respective owners; they are referenced here only to describe compatibility and design inspiration. All code and assets in this repository are original work by the author.
+This is an independent, community-built project. It is **not affiliated with, endorsed by, or sponsored by** Conductor ([conductor.build](https://conductor.build)), [cmux](https://cmux.com), or Anthropic. "Conductor", "cmux", and "Claude" are trademarks of their respective owners; they are referenced here only to describe compatibility and design inspiration.
+
+Most of the code and both screenshots come from the upstream project, [qucooln/cmux-conductor-sidebar](https://github.com/qucooln/cmux-conductor-sidebar), and stay under its MIT license — see [LICENSE](LICENSE). This fork's own work is the light palette and the light/dark switcher.
 
 ---
 
