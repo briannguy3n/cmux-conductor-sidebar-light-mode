@@ -45,6 +45,18 @@ func isRunning(_ label: String, _ id: String) -> Bool {
     return label.contains("run:\(id)")
 }
 
+// A tab is done when it finished and you have not looked at it yet — the
+// answer is sitting there waiting for you. A tab is waiting when the agent is
+// blocked on a question. push_ws writes exactly one marker per tab, so run:,
+// done: and waiting: are mutually exclusive.
+func isDone(_ label: String, _ id: String) -> Bool {
+    return label.contains("done:\(id)")
+}
+
+func isWaiting(_ label: String, _ id: String) -> Bool {
+    return label.contains("waiting:\(id)")
+}
+
 // Live subagent count for one tab — a Task fan-out or a workflow in flight.
 // cmux-status.sh caps the count at 9, so a single digit always matches exactly.
 func hasSubs(_ label: String, _ id: String) -> Bool {
@@ -63,11 +75,17 @@ func subCount(_ label: String, _ id: String) -> String {
     return "1"
 }
 
-// Row wash. A working tab reads first, then the focused one; a working AND
-// focused tab is the strongest of the three so focus never hides the work.
-func rowTint(_ running: Bool, _ focused: Bool) -> Double {
-    if running && focused { return 0.22 }
-    if running { return 0.16 }
+// Row wash. Blue while the tab works, orange while it is blocked on you, green
+// once it is done. All three read louder than plain focus, so focus never hides
+// a tab that wants something from you.
+func rowWash(_ done: Bool, _ waiting: Bool) -> String {
+    if waiting { return "#EA580C" }
+    return done ? "#16A34A" : "#2563EB"
+}
+
+func rowTint(_ active: Bool, _ focused: Bool) -> Double {
+    if active && focused { return 0.22 }
+    if active { return 0.16 }
     return focused ? 0.10 : 0.0
 }
 
@@ -167,6 +185,14 @@ VStack(alignment: .leading, spacing: 0) {
                                         RoundedRectangle(cornerRadius: 2)
                                             .fill("#2563EB")
                                             .frame(width: 3, height: 22)
+                                    } else if isWaiting("\(p.label)", "\(t.id)") {
+                                        RoundedRectangle(cornerRadius: 2)
+                                            .fill("#EA580C")
+                                            .frame(width: 3, height: 22)
+                                    } else if isDone("\(p.label)", "\(t.id)") {
+                                        RoundedRectangle(cornerRadius: 2)
+                                            .fill("#16A34A")
+                                            .frame(width: 3, height: 22)
                                     } else {
                                         Spacer().frame(width: 3)
                                     }
@@ -179,6 +205,14 @@ VStack(alignment: .leading, spacing: 0) {
                                             .font(.system(size: 16)).bold()
                                             .foregroundColor("#1D4ED8")
                                             .frame(width: 16)
+                                    } else if isWaiting("\(p.label)", "\(t.id)") {
+                                        Image(systemName: "terminal")
+                                            .imageScale(.small)
+                                            .foregroundColor("#C2410C")
+                                    } else if isDone("\(p.label)", "\(t.id)") {
+                                        Image(systemName: "terminal")
+                                            .imageScale(.small)
+                                            .foregroundColor("#15803D")
                                     } else {
                                         Image(systemName: "terminal")
                                             .imageScale(.small)
@@ -236,8 +270,8 @@ VStack(alignment: .leading, spacing: 0) {
                             .background {
                                 if let p = w.progress {
                                     RoundedRectangle(cornerRadius: 7)
-                                        .fill("#2563EB")
-                                        .opacity(rowTint(isRunning("\(p.label)", "\(t.id)"), t.focused && w.selected))
+                                        .fill(rowWash(isDone("\(p.label)", "\(t.id)"), isWaiting("\(p.label)", "\(t.id)")))
+                                        .opacity(rowTint(isRunning("\(p.label)", "\(t.id)") || isDone("\(p.label)", "\(t.id)") || isWaiting("\(p.label)", "\(t.id)"), t.focused && w.selected))
                                 } else {
                                     RoundedRectangle(cornerRadius: 7)
                                         .fill("#2563EB")
@@ -245,9 +279,15 @@ VStack(alignment: .leading, spacing: 0) {
                                 }
                             }
                             .overlay {
-                                t.focused && w.selected
-                                    ? AnyView(RoundedRectangle(cornerRadius: 7).stroke("#2563EB", lineWidth: 1))
-                                    : AnyView(EmptyView())
+                                if let p = w.progress {
+                                    t.focused && w.selected
+                                        ? AnyView(RoundedRectangle(cornerRadius: 7).stroke(rowWash(isDone("\(p.label)", "\(t.id)"), isWaiting("\(p.label)", "\(t.id)")), lineWidth: 1))
+                                        : AnyView(EmptyView())
+                                } else {
+                                    t.focused && w.selected
+                                        ? AnyView(RoundedRectangle(cornerRadius: 7).stroke("#2563EB", lineWidth: 1))
+                                        : AnyView(EmptyView())
+                                }
                             }
                             .onTapGesture {
                                 cmux("workspace.select", workspace_id: w.id)

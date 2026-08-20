@@ -115,9 +115,10 @@ $DONE_MSG
 Usage:
   • The sidebar has been switched to Conductor. If it didn't take effect:
     right-click the sidebar-toggle button (bottom left) and pick "conductor".
-  • While Claude Code / trae runs in a tab, that row is washed blue with a left
-    accent bar and a spinner, plus a "⚙ n" badge for the subagents it is running;
-    the workspace name gets a RUNNING / WAITING / READY status pill.
+  • Each tab row is washed by state: blue while the agent works (with a spinner
+    and a "⚙ n" badge for its subagents), orange while it waits on your answer,
+    green once it finishes — until you open it. The workspace name gets a
+    RUNNING / WAITING / READY status pill.
   • Status hooks take effect immediately for new sessions; already-running
     sessions may need one restart.
 

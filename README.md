@@ -10,8 +10,8 @@ A [Conductor](https://conductor.build)-style custom sidebar for [cmux](https://c
 - **Live per-tab status** (the main point):
   - 🔵 a working tab is **washed blue and carries a solid left accent bar**, next to an animated spinner that **keeps spinning even when the tab is in the background** (self-drawn from `clock`, not the terminal's own cursor).
   - ⚙ a live **subagent count** (`⚙3`) while that tab runs a Task fan-out or a workflow, so a wide orchestration reads differently from one agent thinking.
-  - 🟠 a `WAITING` pill (and an orange per-tab dot) when the agent needs your input.
-  - 🟢 a green dot the moment a task finishes — **clears when you open that tab**.
+  - 🟠 when the agent is blocked on a question, that tab is **washed orange with an orange accent bar** and an orange dot, and the workspace gets a `WAITING` pill.
+  - 🟢 the moment a task finishes, that tab is **washed green with a green accent bar** and a green dot, so an answer waiting for you is visible without reading a single tab name — **clears when you open that tab**.
 - **Right-click menu** on a workspace: rename, pin, move up/down/top, mark read, new tab, close.
 - Works with **Claude Code, trae/traex, and opencode**.
 - **One-command install** that backs up your existing config first; clean uninstall; re-run install to update safely.
