@@ -87,6 +87,13 @@ VStack(alignment: .leading, spacing: 0) {
                                 .foregroundColor(.secondary)
                                 .fixedSize()
                         }
+                        Button(action: { cmux("surface.create", workspace_id: w.id, focus: true) }) {
+                            Image(systemName: "plus")
+                                .imageScale(.small)
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .fixedSize()
                     }
                     .padding(4)
                     .onTapGesture { cmux("workspace.select", workspace_id: w.id) }
@@ -141,6 +148,15 @@ VStack(alignment: .leading, spacing: 0) {
                                     Circle().fill("#DC2626").frame(width: 7, height: 7).fixedSize()
                                 }
                             }
+                            if t.focused && w.selected {
+                                Button(action: { cmux("surface.close", surface_id: t.id) }) {
+                                    Image(systemName: "xmark")
+                                        .imageScale(.small)
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .fixedSize()
+                            }
                         }
                         .padding(6)
                         .background {
@@ -157,6 +173,9 @@ VStack(alignment: .leading, spacing: 0) {
                             cmux("workspace.select", workspace_id: w.id)
                             cmux("surface.focus", surface_id: t.id)
                             cmux("notification.create_for_caller", title: "cmux-seen", body: t.id)
+                        }
+                        .contextMenu {
+                            Button("Close Tab") { cmux("surface.close", surface_id: t.id) }
                         }
                     }
                     if w.tabCount > 12 {
