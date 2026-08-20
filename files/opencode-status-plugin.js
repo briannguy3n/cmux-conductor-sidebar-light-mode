@@ -9,6 +9,8 @@
 //   permission/question asked   -> waiting
 //   permission/question replied -> running
 //   session.idle (root session) -> ready
+//   chat.message (non-root session) -> sub_start  (a subagent began)
+//   session.idle (non-root session) -> sub_stop   (that subagent finished)
 //   dispose             -> clear
 //
 // The plugin runs inside the opencode server process, which cmux launched, so
@@ -44,11 +46,31 @@ function report(state) {
 export default function ConductorSidebarStatus() {
   // Only the session you type into is the tab's session. Subagents get their
   // own sessionIDs and go idle mid-turn, which would otherwise clear the
-  // spinner while the main turn is still running.
+  // spinner while the main turn is still running. Every other sessionID is a
+  // subagent, so the same signal also drives the sidebar's live workflow count.
   let rootSession = null;
+  const subSessions = new Set();
+
+  // The turn is over once the root session goes idle, so forget the subagents
+  // it spawned; opencode can hand the same sessionID to a later subagent.
+  function rootIdleOrSubStop(sessionID) {
+    if (!rootSession || sessionID === rootSession) {
+      subSessions.clear();
+      report("ready");
+    } else if (subSessions.delete(sessionID)) {
+      report("sub_stop");
+    }
+  }
 
   return {
     "chat.message": async ({ sessionID }) => {
+      if (sessionID && rootSession && sessionID !== rootSession) {
+        if (!subSessions.has(sessionID)) {
+          subSessions.add(sessionID);
+          report("sub_start");
+        }
+        return;
+      }
       if (sessionID) rootSession = sessionID;
       report("running");
     },
@@ -74,17 +96,12 @@ export default function ConductorSidebarStatus() {
 
         case "session.error":
         case "session.idle":
-          if (!rootSession || props.sessionID === rootSession) report("ready");
+          rootIdleOrSubStop(props.sessionID);
           return;
 
         // Older/newer builds emit the same thing as a status update.
         case "session.status":
-          if (
-            props.status?.type === "idle" &&
-            (!rootSession || props.sessionID === rootSession)
-          ) {
-            report("ready");
-          }
+          if (props.status?.type === "idle") rootIdleOrSubStop(props.sessionID);
           return;
       }
     },
