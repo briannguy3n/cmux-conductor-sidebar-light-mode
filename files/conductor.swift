@@ -42,7 +42,7 @@ func spinner(_ sec: Int) -> String {
 
 VStack(alignment: .leading, spacing: 0) {
     HStack {
-        Text("Workspaces").font(.title3).bold()
+        Text("Workspaces").font(.title).bold()
         Spacer()
     }.padding(6)
     Spacer().frame(height: 8)
@@ -62,14 +62,14 @@ VStack(alignment: .leading, spacing: 0) {
                             .imageScale(.small)
                             .foregroundColor(w.selected ? "#2563EB" : .secondary)
                         Text(w.title)
-                            .font(.callout).bold()
+                            .font(.title3).bold()
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .layoutPriority(1)
                         Text("\(w.tabCount)")
-                            .font(.system(size: 8))
+                            .font(.system(size: 10))
                             .foregroundColor(.secondary)
-                            .frame(width: w.tabCount > 9 ? 20 : 14, height: 14)
+                            .frame(width: w.tabCount > 9 ? 24 : 18, height: 18)
                             .background {
                                 Capsule().fill(.primary).opacity(0.08)
                             }
@@ -83,7 +83,7 @@ VStack(alignment: .leading, spacing: 0) {
                         Spacer(minLength: 3)
                         if let p = w.progress {
                             Text(statusLabel("\(p.label)"))
-                                .font(.system(size: 9)).bold()
+                                .font(.system(size: 11)).bold()
                                 .foregroundColor(statusText(statusLabel("\(p.label)")))
                                 .padding(2)
                                 .background(statusFill(statusLabel("\(p.label)")))
@@ -92,7 +92,7 @@ VStack(alignment: .leading, spacing: 0) {
                         }
                         if let pr = w.pr {
                             Text("#\(pr.number)")
-                                .font(.system(size: 9)).bold()
+                                .font(.system(size: 11)).bold()
                                 .foregroundColor(prText("\(pr.status)", pr.stale))
                                 .padding(2)
                                 .background(prFill("\(pr.status)", pr.stale))
@@ -101,7 +101,7 @@ VStack(alignment: .leading, spacing: 0) {
                         }
                         if w.index < 9 {
                             Text("⌘\(w.index + 1)")
-                                .font(.system(size: 8))
+                                .font(.system(size: 10))
                                 .foregroundColor(.secondary)
                                 .fixedSize()
                         }
@@ -132,7 +132,7 @@ VStack(alignment: .leading, spacing: 0) {
                                 if let p = w.progress {
                                     if p.label.contains("run:\(t.id)") {
                                         Text(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][clock.second % 10])
-                                            .font(.system(size: 12)).bold()
+                                            .font(.system(size: 13)).bold()
                                             .foregroundColor("#2563EB")
                                             .frame(width: 16)
                                     } else {
@@ -147,14 +147,14 @@ VStack(alignment: .leading, spacing: 0) {
                                 }
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(t.title)
-                                        .font(.caption)
+                                        .font(.callout)
                                         .foregroundColor(t.focused && w.selected ? .primary : .secondary)
                                         .lineLimit(1)
                                         .truncationMode(.tail)
                                     if t.focused {
                                         if let m = w.latestMessage {
                                             Text("\(m)")
-                                                .font(.system(size: 9))
+                                                .font(.system(size: 11))
                                                 .foregroundColor(.secondary)
                                                 .lineLimit(1)
                                                 .truncationMode(.tail)
@@ -199,7 +199,7 @@ VStack(alignment: .leading, spacing: 0) {
                         }
                         if w.tabCount > 12 {
                             Text("+ \(w.tabCount - 12) more")
-                                .font(.caption2).foregroundColor(.secondary)
+                                .font(.footnote).foregroundColor(.secondary)
                                 .padding(4)
                         }
                     }
