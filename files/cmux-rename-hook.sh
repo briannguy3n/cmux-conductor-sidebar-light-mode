@@ -3,7 +3,7 @@
 # Intercepts two internal "magic notifications" and swallows them; every other
 # notification passes through unchanged:
 #   cmux-rename  -> show a macOS input dialog to rename a workspace (body=workspace-id)
-#   cmux-seen    -> a tab was opened; clear its "finished, needs review" red dot (body=surface-id)
+#   cmux-seen    -> a tab was opened; clear its "finished, needs review" green dot (body=surface-id)
 # Note: socket authorization is based on the process ancestry chain, so we
 # print the policy, close stdout, and stay resident as the authorization
 # anchor for our child process.

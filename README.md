@@ -9,8 +9,8 @@ A [Conductor](https://conductor.build)-style custom sidebar for [cmux](https://c
 - **Workspace-grouped sidebar**: every tab listed under its workspace, click to jump, drag to reorder.
 - **Live per-tab status** (the main point):
   - 🔵 an animated spinner while an agent is working — **keeps spinning even when the tab is in the background** (self-drawn from `clock`, not the terminal's own cursor).
-  - 🟠 a `WAITING` pill when the agent needs your input.
-  - 🔴 a red dot the moment a task finishes — **clears when you open that tab**.
+  - 🟠 a `WAITING` pill (and an orange per-tab dot) when the agent needs your input.
+  - 🟢 a green dot the moment a task finishes — **clears when you open that tab**.
 - **Right-click menu** on a workspace: rename, pin, move up/down/top, mark read, new tab, close.
 - Works with **Claude Code, trae/traex, and opencode**.
 - **One-command install** that backs up your existing config first; clean uninstall; re-run install to update safely.
@@ -37,9 +37,9 @@ The sidebar auto-activates. If it doesn't: right-click cmux's sidebar-toggle but
 cmux's custom-sidebar DSL can only read cmux's built-in data, which has **no per-tab agent status**. This project bridges that gap:
 
 1. A small hook (`cmux-status.sh`) is registered on Claude Code / trae lifecycle events (`UserPromptSubmit`→running, `PreToolUse`→running, `Notification`→waiting, `Stop`→done, …). opencode has no shell hooks, so a small JS plugin calls the same script from its plugin hooks and event stream.
-2. It records each session's state under `~/.cache/cmux-status/` and aggregates it into that workspace's `progress.label`, e.g. `RUNNING run:<uuid> done:<uuid>`.
-3. The sidebar (`conductor.swift`) parses that label to draw the per-tab spinner / red dot, animated via the DSL's `clock` so it keeps moving for backgrounded tabs.
-4. Opening a tab sends a "seen" signal (a tiny internal notification intercepted by a notification hook) that clears its red dot.
+2. It records each session's state under `~/.cache/cmux-status/` and aggregates it into that workspace's `progress.label`, e.g. `RUNNING run:<uuid> done:<uuid> waiting:<uuid>`.
+3. The sidebar (`conductor.swift`) parses that label to draw the per-tab spinner / green dot / orange dot, animated via the DSL's `clock` so it keeps moving for backgrounded tabs.
+4. Opening a tab sends a "seen" signal (a tiny internal notification intercepted by a notification hook) that clears its green dot.
 
 A 3-minute watchdog also downgrades any `running` that stops refreshing (e.g. a session killed without a `Stop`), so nothing gets stuck spinning.
 
@@ -51,7 +51,7 @@ Speed mode (on by default) sets `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1` in your `
 
 The env var takes effect on the **next** Claude Code session. To opt out, install with `CONDUCTOR_SPEED=0 bash install.sh`.
 
-**Optional — per-turn tab naming.** If you'd rather have each tab auto-named from your latest prompt (like the old streamed titles, but throttled to once per turn), install with `CONDUCTOR_TABNAME=1 bash install.sh`. It's **off by default** because it overwrites the tab title every turn, which fights manual/stable names.
+**Optional — auto tab naming.** Install with `CONDUCTOR_TABNAME=1 bash install.sh` to have each tab named after its **Claude Code session** — the name shown for the session, which you set with `/rename` (Claude Code also auto-names sessions). That name is stable, so the tab keeps it for the whole session. If a session has no name yet, the tab falls back to the first line of your latest prompt. Still **off by default**, because it overwrites any tab title you set by hand.
 
 > Alternative: if the env var doesn't work on your Claude Code version, you can instead lock the title at the terminal with a **non-empty** value in `~/.config/ghostty/config` — `title = cmux` (a blank `title = " "` does *not* lock). That's global to cmux (all tabs stop auto-titling), so the env var is preferred.
 
@@ -70,7 +70,7 @@ Precisely removes only what this package added (hooks, files, config keys). Your
 | `files/conductor.swift` | the sidebar UI (cmux custom-sidebar DSL) |
 | `files/cmux-status.sh` | per-session status reporting + workspace aggregation |
 | `files/cmux-rename-hook.sh` | rename dialog + "seen" red-dot clear (notification hook) |
-| `files/cmux-tabname.sh` | speed mode: name each tab from the prompt, once per turn |
+| `files/cmux-tabname.sh` | speed mode: name each tab after its Claude Code session, once per turn |
 | `files/opencode-status-plugin.js` | opencode plugin: maps its hooks/events onto the same states |
 | `install.sh` / `uninstall.sh` | orchestration (backup → files → config merge → activate) |
 | `merge.py` | idempotent merge/removal for settings.json / trae + traex hooks / cmux.json |
@@ -78,7 +78,7 @@ Precisely removes only what this package added (hooks, files, config keys). Your
 ## Notes & limitations
 
 - Status hooks are read **per-event** by Claude Code / trae, so changes take effect on already-running sessions without a restart.
-- A red dot clears when you click the tab **from this sidebar** (that's what sends the "seen" signal). Switching via `cmd+number` or the top tab bar won't clear it; sending a new prompt to that agent also clears it.
+- A green dot clears when you click the tab **from this sidebar** (that's what sends the "seen" signal). Switching via `cmd+number` or the top tab bar won't clear it; sending a new prompt to that agent also clears it.
 - If you turn on cmux's `workspaceAutoNaming`, its background auto-namer briefly registers as "running" — this package leaves that setting off.
 - trae's newer CLI (`traex`) reads its hooks from `~/.trae/traecli.toml`, not the legacy `~/.trae/hooks.json`; both are written, so either version reports status. traex gates each hook behind a trust prompt, so the first session after installing asks you to approve it once.
 - opencode loads plugins at startup, so an opencode session already running when you install won't report until you restart it.
