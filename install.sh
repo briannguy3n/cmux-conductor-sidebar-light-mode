@@ -26,7 +26,8 @@ BAK="$HOME/.config/cmux/conductor-backup-$TS"
 echo "==> 1/5 Backing up existing config to $BAK"
 mkdir -p "$BAK"
 for f in "$HOME/.claude/settings.json" "$HOME/.config/cmux/cmux.json" \
-         "$HOME/.trae/hooks.json" "$SIDEBARS/conductor.swift"; do
+         "$HOME/.trae/hooks.json" "$SIDEBARS/conductor.swift" \
+         "$SIDEBARS/conductor-dark.swift"; do
   if [ -e "$f" ]; then
     cp "$f" "$BAK/$(echo "$f" | sed "s#$HOME/##; s#/#__#g")" \
       || die "Failed to back up $f — aborting (nothing has been modified yet)."
@@ -42,8 +43,25 @@ install -m 0755 "$FILES/cmux-rename-hook.sh"  "$DEST/cmux-rename-hook.sh"
 install -m 0755 "$FILES/cmux-tabname.sh"      "$DEST/cmux-tabname.sh"
 install -m 0644 "$FILES/opencode-status-plugin.js" "$DEST/opencode-status-plugin.js"
 install -m 0644 "$FILES/conductor.swift"      "$SIDEBARS/conductor.swift"
+
+# The dark variant is generated, not maintained: conductor.swift holds the whole
+# view plus the light palette, and only the marked palette block is swapped for
+# palette-dark.swift. So the two sidebars can never drift apart.
+DARK_TMP="$(mktemp)"
+python3 - "$FILES/conductor.swift" "$FILES/palette-dark.swift" "$DARK_TMP" <<'PY' || die "Failed to generate the dark sidebar variant."
+import sys
+src, palette, out = sys.argv[1:4]
+BEGIN, END = "// >>> conductor palette >>>", "// <<< conductor palette <<<"
+body = open(src).read()
+i, j = body.find(BEGIN), body.find(END)
+if i < 0 or j < 0:
+    sys.exit("palette markers not found in conductor.swift")
+open(out, "w").write(body[:i] + open(palette).read().strip() + body[j + len(END):])
+PY
+install -m 0644 "$DARK_TMP" "$SIDEBARS/conductor-dark.swift"
+rm -f "$DARK_TMP"
 echo "   -> $DEST/{cmux-status.sh,cmux-rename-hook.sh,cmux-tabname.sh,opencode-status-plugin.js}"
-echo "   -> $SIDEBARS/conductor.swift"
+echo "   -> $SIDEBARS/{conductor.swift,conductor-dark.swift}"
 
 # Speed mode (default on; set CONDUCTOR_SPEED=0 to skip) is applied by merge.py:
 # it sets CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1 so Claude Code stops streaming
@@ -83,20 +101,49 @@ fi
 
 echo "==> 5/5 Loading and activating the sidebar"
 "$CMUX" sidebar validate conductor >/dev/null 2>&1 || echo "   ⚠ Sidebar validation failed (cmux may not be running)"
+"$CMUX" sidebar validate conductor-dark >/dev/null 2>&1 || echo "   ⚠ Dark variant validation failed (cmux may not be running)"
+
+# Which variant to activate. The palette has to agree with the ground behind it,
+# and the ground is cmux's own appearance — so that setting decides, and only
+# when it is left on "system" does the macOS appearance break the tie. This also
+# means a re-install keeps whatever the switcher last set, since the switcher
+# writes app.appearance.
+APPEARANCE="$(python3 - "$HOME/.config/cmux/cmux.json" <<'PY'
+import json, re, sys
+try:
+    raw = open(sys.argv[1]).read()
+    raw = re.sub(r'^\s*//.*$', '', raw, flags=re.M)
+    raw = re.sub(r',(\s*[}\]])', r'\1', raw)
+    print(json.loads(raw).get("app", {}).get("appearance", "system"))
+except Exception:
+    print("system")
+PY
+)"
+case "$APPEARANCE" in
+  dark)  SIDEBAR=conductor-dark ;;
+  light) SIDEBAR=conductor ;;
+  *)
+    if [ "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" = "Dark" ]; then
+      SIDEBAR=conductor-dark
+    else
+      SIDEBAR=conductor
+    fi ;;
+esac
+
 # Important: reload-config first so cmux adds the freshly installed
 # conductor.swift to its sidebar list — otherwise the select right after
 # fails because cmux hasn't discovered the file yet.
 "$CMUX" reload-config >/dev/null 2>&1 || true
 ACTIVATED=0
 for _ in 1 2 3; do
-  if "$CMUX" sidebar select conductor >/dev/null 2>&1; then ACTIVATED=1; break; fi
+  if "$CMUX" sidebar select "$SIDEBAR" >/dev/null 2>&1; then ACTIVATED=1; break; fi
   sleep 1
 done
 if [ "$ACTIVATED" = 1 ]; then
-  echo "   Conductor sidebar activated ✓"
+  echo "   Conductor sidebar activated ✓ ($SIDEBAR)"
 else
   echo "   ⚠ Could not auto-activate (cmux may not be running). Run this once in any cmux terminal:"
-  echo "        cmux sidebar select conductor"
+  echo "        cmux sidebar select $SIDEBAR"
 fi
 
 if [ "$WARN" = 1 ]; then
@@ -113,8 +160,13 @@ cat <<EOF
 $DONE_MSG
 
 Usage:
-  • The sidebar has been switched to Conductor. If it didn't take effect:
-    right-click the sidebar-toggle button (bottom left) and pick "conductor".
+  • The sidebar has been switched to Conductor ($SIDEBAR). If it didn't take
+    effect: right-click the sidebar-toggle button (bottom left) and pick
+    "$SIDEBAR".
+  • Light/dark: the button at the bottom left of the sidebar switches both at
+    once — cmux's own appearance (that repaints the whole window) and the
+    matching palette variant. Install picked $SIDEBAR; the switcher's choice
+    sticks across restarts and re-installs.
   • Each tab row is washed by state: blue while the agent works (with a spinner
     and a "⚙ n" badge for its subagents), orange while it waits on your answer,
     green once it finishes — until you open it. The workspace name gets a
