@@ -13,6 +13,16 @@ func statusText(_ label: String) -> String {
     return label == "RUNNING" ? "#1E40AF" : (label == "WAITING" ? "#9A3412" : "#166534")
 }
 
+func prFill(_ status: String, _ stale: Bool) -> String {
+    if stale { return "#FFEDD5" }
+    return status == "merged" ? "#EDE9FE" : (status == "closed" ? "#FEE2E2" : "#DCFCE7")
+}
+
+func prText(_ status: String, _ stale: Bool) -> String {
+    if stale { return "#9A3412" }
+    return status == "merged" ? "#5B21B6" : (status == "closed" ? "#991B1B" : "#166534")
+}
+
 // Self-drawn spinner (clock-driven, keeps spinning while unfocused)
 func spinner(_ sec: Int) -> String {
     let frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
@@ -62,6 +72,15 @@ VStack(alignment: .leading, spacing: 0) {
                                 .cornerRadius(7)
                                 .fixedSize()
                         }
+                        if let pr = w.pr {
+                            Text("#\(pr.number)")
+                                .font(.system(size: 9)).bold()
+                                .foregroundColor(prText("\(pr.status)", pr.stale))
+                                .padding(2)
+                                .background(prFill("\(pr.status)", pr.stale))
+                                .cornerRadius(7)
+                                .fixedSize()
+                        }
                         if w.index < 9 {
                             Text("⌘\(w.index + 1)")
                                 .font(.system(size: 8))
@@ -100,11 +119,22 @@ VStack(alignment: .leading, spacing: 0) {
                                     .imageScale(.small)
                                     .foregroundColor(t.focused && w.selected ? "#2563EB" : .secondary)
                             }
-                            Text(t.title)
-                                .font(.caption)
-                                .foregroundColor(t.focused && w.selected ? .primary : .secondary)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(t.title)
+                                    .font(.caption)
+                                    .foregroundColor(t.focused && w.selected ? .primary : .secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                if t.focused {
+                                    if let m = w.latestMessage {
+                                        Text("\(m)")
+                                            .font(.system(size: 9))
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(1)
+                                            .truncationMode(.tail)
+                                    }
+                                }
+                            }
                             Spacer(minLength: 0)
                             if let p = w.progress {
                                 if p.label.contains("done:\(t.id)") {
