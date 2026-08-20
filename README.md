@@ -8,7 +8,8 @@ A [Conductor](https://conductor.build)-style custom sidebar for [cmux](https://c
 
 - **Workspace-grouped sidebar**: every tab listed under its workspace, click to jump, drag to reorder.
 - **Live per-tab status** (the main point):
-  - 🔵 an animated spinner while an agent is working — **keeps spinning even when the tab is in the background** (self-drawn from `clock`, not the terminal's own cursor).
+  - 🔵 a working tab is **washed blue and carries a solid left accent bar**, next to an animated spinner that **keeps spinning even when the tab is in the background** (self-drawn from `clock`, not the terminal's own cursor).
+  - ⚙ a live **subagent count** (`⚙3`) while that tab runs a Task fan-out or a workflow, so a wide orchestration reads differently from one agent thinking.
   - 🟠 a `WAITING` pill (and an orange per-tab dot) when the agent needs your input.
   - 🟢 a green dot the moment a task finishes — **clears when you open that tab**.
 - **Right-click menu** on a workspace: rename, pin, move up/down/top, mark read, new tab, close.
@@ -36,12 +37,12 @@ The sidebar auto-activates. If it doesn't: right-click cmux's sidebar-toggle but
 
 cmux's custom-sidebar DSL can only read cmux's built-in data, which has **no per-tab agent status**. This project bridges that gap:
 
-1. A small hook (`cmux-status.sh`) is registered on Claude Code / trae lifecycle events (`UserPromptSubmit`→running, `PreToolUse`→running, `Notification`→waiting, `Stop`→done, …). opencode has no shell hooks, so a small JS plugin calls the same script from its plugin hooks and event stream.
-2. It records each session's state under `~/.cache/cmux-status/` and aggregates it into that workspace's `progress.label`, e.g. `RUNNING run:<uuid> done:<uuid> waiting:<uuid>`.
-3. The sidebar (`conductor.swift`) parses that label to draw the per-tab spinner / green dot / orange dot, animated via the DSL's `clock` so it keeps moving for backgrounded tabs.
+1. A small hook (`cmux-status.sh`) is registered on Claude Code / trae lifecycle events (`UserPromptSubmit`→running, `PreToolUse`→running, `SubagentStart`/`SubagentStop`→subagent count, `Notification`→waiting, `Stop`→done, …). opencode has no shell hooks, so a small JS plugin calls the same script from its plugin hooks and event stream — there a subagent is just a session whose id differs from the one you type into.
+2. It records each session's state under `~/.cache/cmux-status/` and aggregates it into that workspace's `progress.label`, e.g. `RUNNING run:<uuid> sub:<uuid>:3 done:<uuid> waiting:<uuid>`.
+3. The sidebar (`conductor.swift`) parses that label to draw the per-tab spinner / accent bar / subagent badge / green dot / orange dot, animated via the DSL's `clock` so it keeps moving for backgrounded tabs.
 4. Opening a tab sends a "seen" signal (a tiny internal notification intercepted by a notification hook) that clears its green dot.
 
-A 3-minute watchdog also downgrades any `running` that stops refreshing (e.g. a session killed without a `Stop`), so nothing gets stuck spinning.
+A 3-minute watchdog also downgrades any `running` that stops refreshing (e.g. a session killed without a `Stop`), so nothing gets stuck spinning. The subagent count is reset at the end of every turn, so a subagent that dies without a `SubagentStop` cannot leave the badge stuck either. It is capped at `⚙9+`.
 
 ## Speed mode
 

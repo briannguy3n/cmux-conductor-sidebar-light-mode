@@ -1,14 +1,15 @@
 #!/bin/bash
 # cmux workspace status sync (called from Claude Code / trae hooks)
-# Usage: cmux-status.sh <running|waiting|ready|done|clear|seen <surface-id>>
+# Usage: cmux-status.sh <running|waiting|ready|done|clear|sub_start|sub_stop|seen <surface-id>>
 #
 # States: running / waiting (needs input) / done (finished, unseen) /
 #         ready (idle, seen) / clear (session exited)
 # Aggregation priority: any running -> RUNNING; else any waiting -> WAITING; else READY.
-# progress.label = "<AGG> run:<uuid> ... done:<uuid> ... waiting:<uuid> ..."
+# progress.label = "<AGG> run:<uuid> sub:<uuid>:<n> done:<uuid> waiting:<uuid> ..."
 #   run: -> sidebar draws an animated spinner; done: -> sidebar draws a green
 #   "finished, needs review" dot; waiting: -> sidebar draws an orange
-#   "needs your input" dot.
+#   "needs your input" dot; sub:<uuid>:<n> -> sidebar draws a "⚙ n" badge for
+#   the n subagents that tab is running right now (a Task fan-out, a workflow).
 # seen <sid>: flip a surface's done to ready (seen — green dot disappears);
 #   triggered when the sidebar opens that tab.
 #
@@ -40,7 +41,7 @@ RECAP_WINDOW=15      # a `running` within this many secs of a finished state = r
 
 # Aggregate one workspace and push ($1 = workspace uuid)
 push_ws() {
-  local ws="$1" dir="$ROOT/$1" agg="" ids="" f v L C I
+  local ws="$1" dir="$ROOT/$1" agg="" ids="" f v b n L C I
   for f in "$dir"/*; do
     [ -e "$f" ] || continue
     v="$(cat "$f" 2>/dev/null)"
@@ -63,10 +64,20 @@ push_ws() {
   for f in "$dir"/*; do
     [ -e "$f" ] || continue
     v="$(cat "$f" 2>/dev/null)"
+    b="$(basename "$f")"
     case "$v" in
-      running) ids="$ids run:$(basename "$f")" ;;
-      done)    ids="$ids done:$(basename "$f")" ;;
-      waiting) ids="$ids waiting:$(basename "$f")" ;;
+      running)
+        ids="$ids run:$b"
+        # Capped at 9 because the sidebar matches the digit with a substring
+        # test, where a two-digit count would also match its first digit.
+        n="$(cat "$dir/.sub.$b" 2>/dev/null)"
+        case "$n" in ''|*[!0-9]*) n=0 ;; esac
+        if [ "$n" -gt 0 ]; then
+          [ "$n" -gt 9 ] && n=9
+          ids="$ids sub:$b:$n"
+        fi ;;
+      done)    ids="$ids done:$b" ;;
+      waiting) ids="$ids waiting:$b" ;;
     esac
   done
   ids="${ids# }"
@@ -88,7 +99,9 @@ run_sweep() {
       [ "$(cat "$f" 2>/dev/null)" = "running" ] || continue
       mt="$(stat -f %m "$f" 2>/dev/null || echo "$now")"
       if [ $((now - mt)) -ge "$STALE_SECS" ]; then
-        printf 'done' > "$f"; changed=1
+        printf 'done' > "$f"
+        rm -f "$wsdir.sub.$(basename "$f")"
+        changed=1
       fi
     done
     [ "$changed" = 1 ] && push_ws "$(basename "$wsdir")"
@@ -196,14 +209,24 @@ case "$1" in
       [ $(( $(date +%s) - mt )) -lt "$RECAP_WINDOW" ] && exit 0
     fi
     printf 'running' > "$DIR/$SF" ;;
-  busy)
-    # Subagent lifecycle (SubagentStart/Stop). These keep the spinner alive
-    # DURING a turn — a long subagent run has no PreToolUse to refresh the
-    # watchdog — but must NEVER resurrect a finished session: a backgrounded
-    # subagent can Stop long after the main turn's Stop (seen 214s later). So
-    # only refresh running while already running; otherwise ignore.
+  sub_start|sub_stop|busy)
+    # Subagent lifecycle (SubagentStart/Stop). Two jobs. It keeps the spinner
+    # alive DURING a turn — a long subagent run has no PreToolUse to refresh the
+    # watchdog — and it tracks how many subagents the tab runs right now, which
+    # the sidebar shows as a "⚙ n" badge. It must NEVER resurrect a finished
+    # session: a backgrounded subagent can Stop long after the main turn's Stop
+    # (seen 214s later). So act only while the surface is already running.
+    # `busy` is the pre-count argument, kept so hooks from an older install
+    # still refresh the heartbeat.
     [ "$(cat "$DIR/$SF" 2>/dev/null)" = "running" ] || exit 0
-    printf 'running' > "$DIR/$SF" ;;
+    printf 'running' > "$DIR/$SF"
+    n="$(cat "$DIR/.sub.$SF" 2>/dev/null)"
+    case "$n" in ''|*[!0-9]*) n=0 ;; esac
+    case "$1" in
+      sub_start) n=$((n + 1)) ;;
+      sub_stop)  [ "$n" -gt 0 ] && n=$((n - 1)) ;;
+    esac
+    printf '%s' "$n" > "$DIR/.sub.$SF" ;;
   waiting)
     # WAITING = the agent is blocked mid-turn (permission / a question). Claude
     # Code also fires an idle-reminder notification ~60s AFTER a turn ends; that
@@ -211,7 +234,7 @@ case "$1" in
     # surface is still running; otherwise it's the idle reminder — leave done/ready.
     [ "$(cat "$DIR/$SF" 2>/dev/null)" = "running" ] || exit 0
     printf 'waiting' > "$DIR/$SF" ;;
-  done) printf 'done' > "$DIR/$SF" ;;
+  done) printf 'done' > "$DIR/$SF"; rm -f "$DIR/.sub.$SF" ;;
   ready)
     # ready is special: if this surface was just running (i.e. it "finished"),
     # upgrade to done (the green "finished, unseen" dot) — UNLESS it's the tab you
@@ -222,8 +245,11 @@ case "$1" in
       printf 'done' > "$DIR/$SF"
     else
       printf 'ready' > "$DIR/$SF"
-    fi ;;
-  clear) rm -f "$DIR/$SF" ;;
+    fi
+    # The turn is over, so any subagent still counted is a Stop this tab never
+    # received (a killed or backgrounded agent). Reset instead of leaking it.
+    rm -f "$DIR/.sub.$SF" ;;
+  clear) rm -f "$DIR/$SF" "$DIR/.sub.$SF" ;;
   *)     exit 0 ;;
 esac
 
@@ -233,6 +259,13 @@ if [ -n "$LIVE" ]; then
   for f in "$DIR"/*; do
     [ -e "$f" ] || continue
     b="$(basename "$f")"
+    case "$LIVE" in *"$b"*) : ;; *) rm -f "$f" ;; esac
+  done
+  # Subagent counters are dot-prefixed (so the state-file globs skip them), so
+  # the loop above never sees them — sweep them on their own.
+  for f in "$DIR"/.sub.*; do
+    [ -e "$f" ] || continue
+    b="$(basename "$f")"; b="${b#.sub.}"
     case "$LIVE" in *"$b"*) : ;; *) rm -f "$f" ;; esac
   done
 fi

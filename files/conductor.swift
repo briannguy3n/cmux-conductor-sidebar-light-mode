@@ -40,6 +40,37 @@ func spinner(_ sec: Int) -> String {
     return frames[sec % 10]
 }
 
+// A tab is working when the workspace label carries its run: marker.
+func isRunning(_ label: String, _ id: String) -> Bool {
+    return label.contains("run:\(id)")
+}
+
+// Live subagent count for one tab — a Task fan-out or a workflow in flight.
+// cmux-status.sh caps the count at 9, so a single digit always matches exactly.
+func hasSubs(_ label: String, _ id: String) -> Bool {
+    return label.contains("sub:\(id):")
+}
+
+func subCount(_ label: String, _ id: String) -> String {
+    if label.contains("sub:\(id):9") { return "9+" }
+    if label.contains("sub:\(id):8") { return "8" }
+    if label.contains("sub:\(id):7") { return "7" }
+    if label.contains("sub:\(id):6") { return "6" }
+    if label.contains("sub:\(id):5") { return "5" }
+    if label.contains("sub:\(id):4") { return "4" }
+    if label.contains("sub:\(id):3") { return "3" }
+    if label.contains("sub:\(id):2") { return "2" }
+    return "1"
+}
+
+// Row wash. A working tab reads first, then the focused one; a working AND
+// focused tab is the strongest of the three so focus never hides the work.
+func rowTint(_ running: Bool, _ focused: Bool) -> Double {
+    if running && focused { return 0.22 }
+    if running { return 0.16 }
+    return focused ? 0.10 : 0.0
+}
+
 VStack(alignment: .leading, spacing: 0) {
     HStack {
         Text("Workspaces").font(.title).bold()
@@ -128,12 +159,25 @@ VStack(alignment: .leading, spacing: 0) {
                     if isExpanded("\(w.description)") {
                         ForEach(w.tabs.prefix(12)) { t in
                             HStack(spacing: 6) {
-                                Spacer().frame(width: 12)
+                                // 3 + 6 (HStack spacing) + 3 keeps the icon at the
+                                // same x as the plain 12pt indent it replaces.
+                                Spacer().frame(width: 3)
                                 if let p = w.progress {
-                                    if p.label.contains("run:\(t.id)") {
+                                    if isRunning("\(p.label)", "\(t.id)") {
+                                        RoundedRectangle(cornerRadius: 2)
+                                            .fill("#2563EB")
+                                            .frame(width: 3, height: 22)
+                                    } else {
+                                        Spacer().frame(width: 3)
+                                    }
+                                } else {
+                                    Spacer().frame(width: 3)
+                                }
+                                if let p = w.progress {
+                                    if isRunning("\(p.label)", "\(t.id)") {
                                         Text(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][clock.second % 10])
-                                            .font(.system(size: 13)).bold()
-                                            .foregroundColor("#2563EB")
+                                            .font(.system(size: 16)).bold()
+                                            .foregroundColor("#1D4ED8")
                                             .frame(width: 16)
                                     } else {
                                         Image(systemName: "terminal")
@@ -163,6 +207,15 @@ VStack(alignment: .leading, spacing: 0) {
                                 }
                                 Spacer(minLength: 0)
                                 if let p = w.progress {
+                                    if hasSubs("\(p.label)", "\(t.id)") {
+                                        Text("⚙\(subCount("\(p.label)", "\(t.id)"))")
+                                            .font(.system(size: 10)).bold()
+                                            .foregroundColor("#1E40AF")
+                                            .padding(2)
+                                            .background("#BFDBFE")
+                                            .cornerRadius(7)
+                                            .fixedSize()
+                                    }
                                     if p.label.contains("done:\(t.id)") {
                                         Circle().fill("#16A34A").frame(width: 7, height: 7).fixedSize()
                                     } else if p.label.contains("waiting:\(t.id)") {
@@ -181,9 +234,15 @@ VStack(alignment: .leading, spacing: 0) {
                             }
                             .padding(6)
                             .background {
-                                RoundedRectangle(cornerRadius: 7)
-                                    .fill("#2563EB")
-                                    .opacity(t.focused && w.selected ? 0.1 : 0.0)
+                                if let p = w.progress {
+                                    RoundedRectangle(cornerRadius: 7)
+                                        .fill("#2563EB")
+                                        .opacity(rowTint(isRunning("\(p.label)", "\(t.id)"), t.focused && w.selected))
+                                } else {
+                                    RoundedRectangle(cornerRadius: 7)
+                                        .fill("#2563EB")
+                                        .opacity(t.focused && w.selected ? 0.1 : 0.0)
+                                }
                             }
                             .overlay {
                                 t.focused && w.selected

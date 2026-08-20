@@ -23,8 +23,8 @@ CLAUDE_HOOKS = [
     # the watchdog from killing a live session and restores `running` after a
     # mid-turn permission prompt. cmux-status.sh has a fast path for it.
     ("PreToolUse",       "running", "*"),
-    ("SubagentStart",    "busy",    None),
-    ("SubagentStop",     "busy",    None),
+    ("SubagentStart",    "sub_start", None),
+    ("SubagentStop",     "sub_stop", None),
     ("Notification",     "waiting", None),
     ("Stop",             "ready",   None),
     ("SessionEnd",       "clear",   None),
@@ -46,8 +46,8 @@ TOML_END   = "# <<< conductor-sidebar hooks <<<"
 TRAEX_HOOKS = [
     ("UserPromptSubmit", "running", True),
     ("PreToolUse",       "running", True),
-    ("SubagentStart",    "busy",    True),
-    ("SubagentStop",     "busy",    True),
+    ("SubagentStart",    "sub_start", True),
+    ("SubagentStop",     "sub_stop", False),
     ("Notification",     "waiting", False),
     ("Stop",             "ready",   False),
     ("SessionEnd",       "clear",   False),
@@ -138,8 +138,10 @@ def load_jsonc(p):
 
 # These events run synchronously: end-of-turn / low-frequency, must fire reliably.
 # (An async Stop often gets dropped before it can spawn, leaving "running"
-# never cleared and the spinner stuck.)
-SYNC_EVENTS = {"Stop", "Notification", "SessionEnd"}
+# never cleared and the spinner stuck.) SubagentStop is here for the same reason
+# on a smaller scale: a dropped decrement leaves the subagent count too high for
+# the rest of the turn. A dropped SubagentStart only undercounts, so it stays async.
+SYNC_EVENTS = {"Stop", "Notification", "SessionEnd", "SubagentStop"}
 
 def hook_cmd(arg, timeout=True, is_async=True):
     # High-frequency events are async (don't block tool calls);
