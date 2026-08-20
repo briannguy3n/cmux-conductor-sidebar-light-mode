@@ -51,7 +51,7 @@ Speed mode (on by default) sets `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1` in your `
 
 The env var takes effect on the **next** Claude Code session. To opt out, install with `CONDUCTOR_SPEED=0 bash install.sh`.
 
-**Optional — per-turn tab naming.** If you'd rather have each tab auto-named from your latest prompt (like the old streamed titles, but throttled to once per turn), install with `CONDUCTOR_TABNAME=1 bash install.sh`. It's **off by default** because it overwrites the tab title every turn, which fights manual/stable names.
+**Optional — auto tab naming.** Install with `CONDUCTOR_TABNAME=1 bash install.sh` to have each tab named after its **Claude Code session** — the name shown for the session, which you set with `/rename` (Claude Code also auto-names sessions). That name is stable, so the tab keeps it for the whole session. If a session has no name yet, the tab falls back to the first line of your latest prompt. Still **off by default**, because it overwrites any tab title you set by hand.
 
 > Alternative: if the env var doesn't work on your Claude Code version, you can instead lock the title at the terminal with a **non-empty** value in `~/.config/ghostty/config` — `title = cmux` (a blank `title = " "` does *not* lock). That's global to cmux (all tabs stop auto-titling), so the env var is preferred.
 
@@ -70,7 +70,7 @@ Precisely removes only what this package added (hooks, files, config keys). Your
 | `files/conductor.swift` | the sidebar UI (cmux custom-sidebar DSL) |
 | `files/cmux-status.sh` | per-session status reporting + workspace aggregation |
 | `files/cmux-rename-hook.sh` | rename dialog + "seen" red-dot clear (notification hook) |
-| `files/cmux-tabname.sh` | speed mode: name each tab from the prompt, once per turn |
+| `files/cmux-tabname.sh` | speed mode: name each tab after its Claude Code session, once per turn |
 | `files/opencode-status-plugin.js` | opencode plugin: maps its hooks/events onto the same states |
 | `install.sh` / `uninstall.sh` | orchestration (backup → files → config merge → activate) |
 | `merge.py` | idempotent merge/removal for settings.json / trae + traex hooks / cmux.json |
