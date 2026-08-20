@@ -3,7 +3,6 @@
 A [Conductor](https://conductor.build)-style custom sidebar for [cmux](https://cmux.com), with **live per-tab agent status** — see at a glance which Claude Code / trae session is running, waiting for input, or done.
 
 
-
 ## Features
 
 - **Workspace-grouped sidebar**: every tab listed under its workspace, click to jump, drag to reorder.
@@ -25,8 +24,8 @@ A [Conductor](https://conductor.build)-style custom sidebar for [cmux](https://c
 ## Install
 
 ```bash
-git clone https://github.com/qucooln/cmux-conductor-sidebar.git
-cd cmux-conductor-sidebar
+git clone https://github.com/briannguy3n/cmux-conductor-sidebar-light-mode.git
+cd cmux-conductor-sidebar-light-mode
 bash install.sh
 ```
 
@@ -109,7 +108,9 @@ MIT — see [LICENSE](LICENSE).
 
 ## Disclaimer
 
-This is an independent, community-built project. It is **not affiliated with, endorsed by, or sponsored by** Conductor ([conductor.build](https://conductor.build)), [cmux](https://cmux.com), or Anthropic. "Conductor", "cmux", and "Claude" are trademarks of their respective owners; they are referenced here only to describe compatibility and design inspiration. All code and assets in this repository are original work by the author.
+This is an independent, community-built project. It is **not affiliated with, endorsed by, or sponsored by** Conductor ([conductor.build](https://conductor.build)), [cmux](https://cmux.com), or Anthropic. "Conductor", "cmux", and "Claude" are trademarks of their respective owners; they are referenced here only to describe compatibility and design inspiration.
+
+Most of the code and both screenshots come from the upstream project, [qucooln/cmux-conductor-sidebar](https://github.com/qucooln/cmux-conductor-sidebar), and stay under its MIT license — see [LICENSE](LICENSE). This fork's own work is the light palette and the light/dark switcher.
 
 ---
 
