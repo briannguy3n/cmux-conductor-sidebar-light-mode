@@ -5,10 +5,11 @@
 # States: running / waiting (needs input) / done (finished, unseen) /
 #         ready (idle, seen) / clear (session exited)
 # Aggregation priority: any running -> RUNNING; else any waiting -> WAITING; else READY.
-# progress.label = "<AGG> run:<uuid> ... done:<uuid> ..."
-#   run:  -> sidebar draws an animated spinner; done: -> sidebar draws a red
-#   "finished, needs review" dot.
-# seen <sid>: flip a surface's done to ready (seen — red dot disappears);
+# progress.label = "<AGG> run:<uuid> ... done:<uuid> ... waiting:<uuid> ..."
+#   run: -> sidebar draws an animated spinner; done: -> sidebar draws a green
+#   "finished, needs review" dot; waiting: -> sidebar draws an orange
+#   "needs your input" dot.
+# seen <sid>: flip a surface's done to ready (seen — green dot disappears);
 #   triggered when the sidebar opens that tab.
 #
 # Safety net (A): a running entry not refreshed for STALE_SECS is treated as
@@ -65,6 +66,7 @@ push_ws() {
     case "$v" in
       running) ids="$ids run:$(basename "$f")" ;;
       done)    ids="$ids done:$(basename "$f")" ;;
+      waiting) ids="$ids waiting:$(basename "$f")" ;;
     esac
   done
   ids="${ids# }"
@@ -212,7 +214,7 @@ case "$1" in
   done) printf 'done' > "$DIR/$SF" ;;
   ready)
     # ready is special: if this surface was just running (i.e. it "finished"),
-    # upgrade to done (the red "finished, unseen" dot) — UNLESS it's the tab you
+    # upgrade to done (the green "finished, unseen" dot) — UNLESS it's the tab you
     # are currently viewing. If you're already looking at it, you've "seen" it,
     # so go straight to ready with no dot; only backgrounded tabs get the dot.
     if [ "$(cat "$DIR/$SF" 2>/dev/null)" = "running" ] \

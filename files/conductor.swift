@@ -164,7 +164,9 @@ VStack(alignment: .leading, spacing: 0) {
                                 Spacer(minLength: 0)
                                 if let p = w.progress {
                                     if p.label.contains("done:\(t.id)") {
-                                        Circle().fill("#DC2626").frame(width: 7, height: 7).fixedSize()
+                                        Circle().fill("#16A34A").frame(width: 7, height: 7).fixedSize()
+                                    } else if p.label.contains("waiting:\(t.id)") {
+                                        Circle().fill("#EA580C").frame(width: 7, height: 7).fixedSize()
                                     }
                                 }
                                 if t.focused && w.selected {
