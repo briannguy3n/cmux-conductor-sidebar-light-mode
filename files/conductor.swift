@@ -147,14 +147,14 @@ VStack(alignment: .leading, spacing: 0) {
                                 }
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(t.title)
-                                        .font(.callout)
+                                        .font(.headline)
                                         .foregroundColor(t.focused && w.selected ? .primary : .secondary)
                                         .lineLimit(1)
                                         .truncationMode(.tail)
                                     if t.focused {
                                         if let m = w.latestMessage {
                                             Text("\(m)")
-                                                .font(.system(size: 11))
+                                                .font(.footnote)
                                                 .foregroundColor(.secondary)
                                                 .lineLimit(1)
                                                 .truncationMode(.tail)
