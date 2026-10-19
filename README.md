@@ -68,7 +68,18 @@ Speed mode (on by default) sets `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1` in your `
 
 The env var takes effect on the **next** Claude Code session. To opt out, install with `CONDUCTOR_SPEED=0 bash install.sh`.
 
-**Optional — auto tab naming.** Install with `CONDUCTOR_TABNAME=1 bash install.sh` to have each tab named after its **Claude Code session** — the name shown for the session, which you set with `/rename` (Claude Code also auto-names sessions). That name is stable, so the tab keeps it for the whole session. If a session has no name yet, the tab falls back to the first line of your latest prompt. Still **off by default**, because it overwrites any tab title you set by hand.
+**Optional — auto tab naming.** Install with `CONDUCTOR_TABNAME=1 bash install.sh` to have each tab named after what its session is actually about. Off by default, because it overwrites any tab title you set by hand. The name is picked on `SessionStart`, `UserPromptSubmit` and `Stop`, best source first:
+
+| Source | Behavior |
+| --- | --- |
+| `/rename <name>` | **Pins.** Nothing overwrites it and the summarizer stops running for that session. |
+| auto-summary | Every 5 turns, `cmux-autotitle.sh` re-reads your recent prompts and names the tab after the **current** subject. |
+| session title | What Claude Code stamps as a `custom-title`. It picks one early and never revises it — which is why the summarizer exists. |
+| first prompt | Only until one of the above lands. |
+
+The summarizer is a one-shot headless `claude -p` call on Haiku, detached so it never holds up a turn (~7s to land). It runs with `--setting-sources ""` so it loads none of your hooks, and it exports `CONDUCTOR_NO_TABNAME=1`, which makes every script in this package a no-op — so a summarizer run can never drive the sidebar or summarize itself. Auth is the only thing borrowed from your settings: `apiKeyHelper` and `ANTHROPIC_*` env, copied into a small auth-only file.
+
+Tune it with `CONDUCTOR_TITLE_EVERY` (turns between refreshes, default 5) and `CONDUCTOR_TITLE_MODEL` (default `claude-haiku-4-5-20251001`). Each refresh costs one small model call, so a 30-turn session costs about 6.
 
 > Alternative: if the env var doesn't work on your Claude Code version, you can instead lock the title at the terminal with a **non-empty** value in `~/.config/ghostty/config` — `title = cmux` (a blank `title = " "` does *not* lock). That's global to cmux (all tabs stop auto-titling), so the env var is preferred.
 
@@ -88,7 +99,8 @@ Precisely removes only what this package added (hooks, files, config keys). Your
 | `files/palette-dark.swift` | the dark palette block; install splices it in to generate `conductor-dark` |
 | `files/cmux-status.sh` | per-session status reporting + workspace aggregation |
 | `files/cmux-rename-hook.sh` | rename dialog + "seen" green-dot clear + light/dark switch (notification hook) |
-| `files/cmux-tabname.sh` | speed mode: name each tab after its Claude Code session, once per turn |
+| `files/cmux-tabname.sh` | speed mode: name each tab after its session — pinned name, else summary, else session title |
+| `files/cmux-autotitle.sh` | re-summarizes the recent turns every few turns, so a tab name follows the subject |
 | `files/opencode-status-plugin.js` | opencode plugin: maps its hooks/events onto the same states |
 | `install.sh` / `uninstall.sh` | orchestration (backup → files → config merge → activate) |
 | `merge.py` | idempotent merge/removal for settings.json / trae + traex hooks / cmux.json |

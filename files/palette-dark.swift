@@ -72,10 +72,9 @@ func glyph(_ state: String) -> String {
 // .primary / .secondary — see the note above.
 func chrome(_ part: String) -> String {
     if part == "slab" { return "#1B222B" }
-    if part == "slabFocus" { return "#1E2C3C" }
+    if part == "slabFocus" { return "#463618" }
     if part == "ink" { return "#E6EAF0" }
-    if part == "capsule" { return "#252E39" }
-    if part == "focus" { return "#60A5FA" }
+    if part == "focus" { return "#FCD34D" }
     if part == "pin" { return "#FBBF24" }
     if part == "subFill" { return "#1E40AF" }
     if part == "subText" { return "#DBEAFE" }

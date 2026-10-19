@@ -168,17 +168,25 @@ def add_hooks(hlist, spec, timeout):
             entry["matcher"] = matcher
         hlist.setdefault(ev, []).append(entry)
 
-# Speed mode: name the tab once per turn from the user's prompt (UserPromptSubmit).
-# Pairs with a locked Ghostty title, which stops the per-output title-change flood
-# that makes cmux slow (see cmux #4681). install.sh sets/unsets the title lock.
+# Speed mode: name the tab after the session, not after one prompt. Pairs with a
+# locked Ghostty title, which stops the per-output title-change flood that makes
+# cmux slow (see cmux #4681). install.sh sets/unsets the title lock.
+#
+# Three events, because a session title arrives late or never:
+#   SessionStart       — a resumed session already has its title, so use it at once.
+#   UserPromptSubmit   — first turn of a fresh session; falls back to the prompt.
+#   Stop               — end of every turn, so a /rename lands without a new prompt.
+# Only UserPromptSubmit carries prompt text, so the other two rename only when a
+# real title exists and never overwrite a good name with a stale one.
+TABNAME_EVENTS = ("SessionStart", "UserPromptSubmit", "Stop")
+
 def add_tabname(hlist):
-    ev = "UserPromptSubmit"
-    for e in hlist.get(ev, []):
-        for hk in e.get("hooks", []):
-            if "cmux-tabname.sh" in hk.get("command", ""):
-                return
-    hlist.setdefault(ev, []).append(
-        {"hooks": [{"type": "command", "command": f'bash "{TABNAME}"', "timeout": 5, "async": True}]})
+    for ev in TABNAME_EVENTS:
+        if any("cmux-tabname.sh" in hk.get("command", "")
+               for e in hlist.get(ev, []) for hk in e.get("hooks", [])):
+            continue
+        hlist.setdefault(ev, []).append(
+            {"hooks": [{"type": "command", "command": f'bash "{TABNAME}"', "timeout": 5, "async": True}]})
 
 def strip_hooks(hlist):
     for ev in list(hlist.keys()):

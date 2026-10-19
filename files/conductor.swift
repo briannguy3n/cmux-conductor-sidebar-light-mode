@@ -74,10 +74,9 @@ func glyph(_ state: String) -> String {
 // .primary / .secondary — see the note above.
 func chrome(_ part: String) -> String {
     if part == "slab" { return "#EEF0F4" }
-    if part == "slabFocus" { return "#E3E8F0" }
+    if part == "slabFocus" { return "#F7E6C4" }
     if part == "ink" { return "#111827" }
-    if part == "capsule" { return "#E4E7EB" }
-    if part == "focus" { return "#2563EB" }
+    if part == "focus" { return "#D97706" }
     if part == "pin" { return "#B45309" }
     if part == "subFill" { return "#BFDBFE" }
     if part == "subText" { return "#1E40AF" }
@@ -143,10 +142,10 @@ func subCount(_ label: String, _ id: String) -> String {
 
 VStack(alignment: .leading, spacing: 0) {
     HStack {
-        Text("Workspaces").font(.title).bold().foregroundColor(chrome("ink"))
+        Text("Workspaces").font(.title3).bold().foregroundColor(chrome("ink"))
         Spacer()
-    }.padding(6)
-    Spacer().frame(height: 8)
+    }.padding(4)
+    Spacer().frame(height: 4)
     ScrollView {
         VStack(alignment: .leading, spacing: 2) {
             Reorderable(workspaces, move: "workspace.reorder") { w in
@@ -163,19 +162,11 @@ VStack(alignment: .leading, spacing: 0) {
                             .imageScale(.small)
                             .foregroundColor(w.selected ? chrome("focus") : chrome("dim"))
                         Text(w.title)
-                            .font(.title3).bold()
+                            .font(.system(size: 14)).bold()
                             .foregroundColor(chrome("ink"))
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .layoutPriority(1)
-                        Text("\(w.tabCount)")
-                            .font(.system(size: 10))
-                            .foregroundColor(chrome("dim"))
-                            .frame(width: w.tabCount > 9 ? 24 : 18, height: 18)
-                            .background {
-                                Capsule().fill(chrome("capsule"))
-                            }
-                            .fixedSize()
                         if w.pinned {
                             Image(systemName: "pin.fill")
                                 .imageScale(.small)
@@ -215,7 +206,7 @@ VStack(alignment: .leading, spacing: 0) {
                         .buttonStyle(.plain)
                         .fixedSize()
                     }
-                    .padding(4)
+                    .padding(3)
                     .onTapGesture { cmux("workspace.select", workspace_id: w.id) }
                     .contextMenu {
                         Button("Rename…") { cmux("notification.create_for_caller", title: "cmux-rename", body: w.id) }
@@ -233,31 +224,40 @@ VStack(alignment: .leading, spacing: 0) {
                                 // 3 + 6 (HStack spacing) + 3 keeps the icon at the
                                 // same x as the plain 12pt indent it replaces.
                                 Spacer().frame(width: 3)
-                                if let p = w.progress {
-                                    if isRunning("\(p.label)", "\(t.id)") {
-                                        RoundedRectangle(cornerRadius: 2)
-                                            .fill(accent("run"))
-                                            .frame(width: 3, height: 22)
-                                    } else if isWaiting("\(p.label)", "\(t.id)") {
-                                        RoundedRectangle(cornerRadius: 2)
-                                            .fill(accent("wait"))
-                                            .frame(width: 3, height: 22)
-                                    } else if isDone("\(p.label)", "\(t.id)") {
-                                        RoundedRectangle(cornerRadius: 2)
-                                            .fill(accent("done"))
-                                            .frame(width: 3, height: 22)
+                                // The tab you are looking at owns the left bar, in
+                                // the focus hue. Its state still reads from the
+                                // wash, the glyph and the dot.
+                                if t.focused && w.selected {
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(chrome("focus"))
+                                        .frame(width: 3, height: 18)
+                                } else {
+                                    if let p = w.progress {
+                                        if isRunning("\(p.label)", "\(t.id)") {
+                                            RoundedRectangle(cornerRadius: 2)
+                                                .fill(accent("run"))
+                                                .frame(width: 3, height: 18)
+                                        } else if isWaiting("\(p.label)", "\(t.id)") {
+                                            RoundedRectangle(cornerRadius: 2)
+                                                .fill(accent("wait"))
+                                                .frame(width: 3, height: 18)
+                                        } else if isDone("\(p.label)", "\(t.id)") {
+                                            RoundedRectangle(cornerRadius: 2)
+                                                .fill(accent("done"))
+                                                .frame(width: 3, height: 18)
+                                        } else {
+                                            Spacer().frame(width: 3)
+                                        }
                                     } else {
                                         Spacer().frame(width: 3)
                                     }
-                                } else {
-                                    Spacer().frame(width: 3)
                                 }
                                 if let p = w.progress {
                                     if isRunning("\(p.label)", "\(t.id)") {
                                         Text(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][clock.second % 10])
-                                            .font(.system(size: 16)).bold()
+                                            .font(.system(size: 14)).bold()
                                             .foregroundColor(glyph("run"))
-                                            .frame(width: 16)
+                                            .frame(width: 14)
                                     } else if isWaiting("\(p.label)", "\(t.id)") {
                                         Image(systemName: "terminal")
                                             .imageScale(.small)
@@ -278,7 +278,7 @@ VStack(alignment: .leading, spacing: 0) {
                                 }
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(t.title)
-                                        .font(.title3)
+                                        .font(.system(size: 13))
                                         .foregroundColor(t.focused && w.selected ? chrome("ink") : chrome("dim"))
                                         .lineLimit(1)
                                         .truncationMode(.tail)
@@ -310,7 +310,7 @@ VStack(alignment: .leading, spacing: 0) {
                                     }
                                 }
                                 if t.focused && w.selected {
-                                    Button(action: { cmux("surface.close", surface_id: t.id) }) {
+                                    Button(action: { cmux("surface.close", surface_id: t.id, force: true) }) {
                                         Image(systemName: "xmark")
                                             .imageScale(.small)
                                             .foregroundColor(chrome("dim"))
@@ -319,7 +319,7 @@ VStack(alignment: .leading, spacing: 0) {
                                     .fixedSize()
                                 }
                             }
-                            .padding(6)
+                            .padding(4)
                             .background {
                                 // Two layers: the opaque slab that gives every row
                                 // the same body, then the state wash on top of it.
@@ -340,8 +340,11 @@ VStack(alignment: .leading, spacing: 0) {
                             }
                             .overlay {
                                 if let p = w.progress {
+                                    // An idle focused row keeps the yellow focus
+                                    // ring; a working row trades it for its own
+                                    // state hue, so state still reads louder.
                                     t.focused && w.selected
-                                        ? AnyView(RoundedRectangle(cornerRadius: 7).stroke(rowWash(isDone("\(p.label)", "\(t.id)"), isWaiting("\(p.label)", "\(t.id)")), lineWidth: 1))
+                                        ? AnyView(RoundedRectangle(cornerRadius: 7).stroke(isRunning("\(p.label)", "\(t.id)") || isWaiting("\(p.label)", "\(t.id)") || isDone("\(p.label)", "\(t.id)") ? rowWash(isDone("\(p.label)", "\(t.id)"), isWaiting("\(p.label)", "\(t.id)")) : chrome("focus"), lineWidth: 1))
                                         : AnyView(EmptyView())
                                 } else {
                                     t.focused && w.selected
@@ -355,7 +358,7 @@ VStack(alignment: .leading, spacing: 0) {
                                 cmux("notification.create_for_caller", title: "cmux-seen", body: t.id)
                             }
                             .contextMenu {
-                                Button("Close Tab") { cmux("surface.close", surface_id: t.id) }
+                                Button("Close Tab") { cmux("surface.close", surface_id: t.id, force: true) }
                             }
                         }
                         if w.tabCount > 12 {

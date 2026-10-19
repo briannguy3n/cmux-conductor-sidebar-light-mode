@@ -41,6 +41,7 @@ mkdir -p "$DEST" "$SIDEBARS"
 install -m 0755 "$FILES/cmux-status.sh"       "$DEST/cmux-status.sh"
 install -m 0755 "$FILES/cmux-rename-hook.sh"  "$DEST/cmux-rename-hook.sh"
 install -m 0755 "$FILES/cmux-tabname.sh"      "$DEST/cmux-tabname.sh"
+install -m 0755 "$FILES/cmux-autotitle.sh"    "$DEST/cmux-autotitle.sh"
 install -m 0644 "$FILES/opencode-status-plugin.js" "$DEST/opencode-status-plugin.js"
 install -m 0644 "$FILES/conductor.swift"      "$SIDEBARS/conductor.swift"
 
@@ -60,7 +61,7 @@ open(out, "w").write(body[:i] + open(palette).read().strip() + body[j + len(END)
 PY
 install -m 0644 "$DARK_TMP" "$SIDEBARS/conductor-dark.swift"
 rm -f "$DARK_TMP"
-echo "   -> $DEST/{cmux-status.sh,cmux-rename-hook.sh,cmux-tabname.sh,opencode-status-plugin.js}"
+echo "   -> $DEST/{cmux-status.sh,cmux-rename-hook.sh,cmux-tabname.sh,cmux-autotitle.sh,opencode-status-plugin.js}"
 echo "   -> $SIDEBARS/{conductor.swift,conductor-dark.swift}"
 
 # Speed mode (default on; set CONDUCTOR_SPEED=0 to skip) is applied by merge.py:
