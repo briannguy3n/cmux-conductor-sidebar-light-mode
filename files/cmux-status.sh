@@ -31,6 +31,10 @@
 # no matching Stop, which would restart the spinner forever. We ignore a
 # `running` that lands within RECAP_WINDOW of a just-finished state.
 
+# A tab-title summarizer run is a Claude Code session of its own. Its states
+# belong to no tab, so they must never touch the sidebar.
+[ -n "$CONDUCTOR_NO_TABNAME" ] && exit 0
+
 CMUX="${CMUX_CLAUDE_HOOK_CMUX_BIN:-/Applications/cmux.app/Contents/Resources/bin/cmux}"
 [ -x "$CMUX" ] || CMUX="$(command -v cmux)" || exit 0
 
@@ -240,7 +244,10 @@ case "$1" in
     # upgrade to done (the green "finished, unseen" dot) — UNLESS it's the tab you
     # are currently viewing. If you're already looking at it, you've "seen" it,
     # so go straight to ready with no dot; only backgrounded tabs get the dot.
-    if [ "$(cat "$DIR/$SF" 2>/dev/null)" = "running" ] \
+    # An already-done tab keeps its dot too: a background task finishing wakes
+    # the agent for a short turn whose Stop arrives with no running before it.
+    cur="$(cat "$DIR/$SF" 2>/dev/null)"
+    if { [ "$cur" = "running" ] || [ "$cur" = "done" ]; } \
        && ! { [ -n "$ACTIVE_SF" ] && [ "$ACTIVE_SF" = "$SF" ]; }; then
       printf 'done' > "$DIR/$SF"
     else
